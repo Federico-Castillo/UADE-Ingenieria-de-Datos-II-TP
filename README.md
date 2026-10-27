@@ -43,9 +43,13 @@ esquema, ver `scripts/schema/redis_conventions.md`).
 python main.py
 ```
 
-Por ahora solo "Gestión de Clientes" está implementado de punta a punta (ABM
-completo); el resto de las opciones del menú principal están reservadas como
-"próximamente".
+Implementados de punta a punta: Clientes, Usuarios, Roles, Sesiones (Redis),
+Proveedores y Operadores Logísticos. El resto de las opciones del menú
+principal están reservadas como "próximamente".
+
+> **Nota Windows:** `getpass.getpass()` (usado para la contraseña en el alta de
+> Usuario) lee directo de la consola, no de stdin redirigido — no se puede
+> automatizar ese flujo por pipe, solo funciona en una terminal interactiva real.
 
 ## Tests
 

@@ -1,12 +1,13 @@
 """Menú principal de la aplicación. Las entidades aún no implementadas quedan
 como placeholder para no tener que tocar esta estructura en sesiones futuras."""
 from app.cli.cliente_menu import menu_cliente
+from app.cli.operador_logistico_menu import menu_operador_logistico
+from app.cli.proveedor_menu import menu_proveedor
+from app.cli.rol_menu import menu_rol
+from app.cli.sesion_menu import menu_sesion
+from app.cli.usuario_menu import menu_usuario
 
 _PROXIMAMENTE = [
-    "Gestión de Usuarios y Roles",
-    "Gestión de Sesiones activas",
-    "Gestión de Proveedores",
-    "Gestión de Operadores Logísticos",
     "Gestión de Envíos / Contenedores / Sensores",
     "Gestión de Reglas y Alertas",
     "Cuenta Corriente y Facturación",
@@ -24,7 +25,14 @@ def _mostrar_proximamente(nombre: str) -> None:
 
 
 def menu_principal() -> None:
-    opciones = [("Gestión de Clientes", menu_cliente)]
+    opciones = [
+        ("Gestión de Clientes", menu_cliente),
+        ("Gestión de Usuarios", menu_usuario),
+        ("Gestión de Roles", menu_rol),
+        ("Gestión de Sesiones", menu_sesion),
+        ("Gestión de Proveedores", menu_proveedor),
+        ("Gestión de Operadores Logísticos", menu_operador_logistico),
+    ]
     opciones += [(nombre, lambda n=nombre: _mostrar_proximamente(n)) for nombre in _PROXIMAMENTE]
 
     while True:

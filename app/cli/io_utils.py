@@ -1,4 +1,9 @@
 """Helpers de entrada/salida para los menús de consola."""
+import getpass
+
+
+def leer_password(etiqueta: str = "Contraseña") -> str:
+    return getpass.getpass(f"{etiqueta}: ")
 
 
 def leer_no_vacio(etiqueta: str) -> str:
