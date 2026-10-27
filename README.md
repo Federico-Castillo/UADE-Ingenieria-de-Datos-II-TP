@@ -71,6 +71,27 @@ Alerta). Solo Inteligencia Analítica queda como "próximamente" en el menú.
 > Usuario) lee directo de la consola, no de stdin redirigido — no se puede
 > automatizar ese flujo por pipe, solo funciona en una terminal interactiva real.
 
+## Datos de prueba para la defensa
+
+```bash
+python scripts/seed_datos_prueba.py                     # limpia y carga un set chico (DEMO_)
+python scripts/seed_datos_prueba.py --solo-limpiar        # solo borra los datos DEMO_
+```
+
+Reusa los Services existentes de punta a punta (nada de SQL/Cypher nuevo):
+6 clientes, proveedores/operadores, vehículos, contenedores+sensores,
+reglas, 18 envíos con variedad de estados, facturación (clientes y
+proveedores/operadores, con saldos pagado/parcial/pendiente), tramos con
+costo, eventos logísticos, incidentes, mensajería, predicciones de riesgo, y
+metadata de Reporte — en los 5 motores. Al final corre la actividad
+derivada: unos ticks del simulador IoT (deja 2 sensores sin lecturas a
+propósito), el cierre mensual del período actual, y la detección de
+sensores inactivos, para que esos procesos periódicos y los reportes
+operativos no aparezcan vacíos. Todo el texto identificable lleva el
+prefijo `DEMO_` (mismo criterio que `TEST_` en los tests, namespace
+distinto a propósito) y el script limpia sus propios datos antes de cargar,
+así que se puede re-correr sin acumular duplicados.
+
 ## Simulador de sensores IoT
 
 No hay hardware real (decisión de alcance del TP). Este script inserta

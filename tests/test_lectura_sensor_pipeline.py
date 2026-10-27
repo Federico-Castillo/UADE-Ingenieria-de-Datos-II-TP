@@ -76,15 +76,21 @@ def test_lectura_anomala_dispara_incidente_y_alerta(
     service = LecturaSensorService(repository=lectura_sensor_repo)
     service.registrar_lectura(LecturaSensor(id_sensor=id_sensor, temperatura=38.0))
 
-    incidentes = IncidenteService().listar_por_envio(id_envio)
+    # Puede haber otras Reglas activas de tipo 'temperatura' en la base (ej.
+    # datos de prueba de scripts/seed_datos_prueba.py) que también disparen
+    # con este valor: se filtra por la propia regla en vez de asumir que es
+    # la única activa de ese tipo_sensor.
+    incidentes = [
+        i for i in IncidenteService().listar_por_envio(id_envio) if "TEST_ReglaPipeline" in i.descripcion
+    ]
     assert len(incidentes) == 1
     incidente = incidentes[0]
     assert incidente.tipo == "anomalia_temperatura"
     assert incidente.severidad == "critica"
 
-    alertas = [a for a in AlertaService().listar_activas() if a.id_sensor == id_sensor]
-    assert len(alertas) == 1
-    alerta = alertas[0]
-    alertas_creadas.append(alerta.id_alerta)
-    assert alerta.id_regla == id_regla
+    alertas_del_sensor = [a for a in AlertaService().listar_activas() if a.id_sensor == id_sensor]
+    alertas_creadas.extend(a.id_alerta for a in alertas_del_sensor)
+    alertas_propias = [a for a in alertas_del_sensor if a.id_regla == id_regla]
+    assert len(alertas_propias) == 1
+    alerta = alertas_propias[0]
     assert alerta.id_evento == incidente.id_incidente
