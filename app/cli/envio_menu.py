@@ -2,6 +2,7 @@
 from app.cli.io_utils import confirmar, leer_entero, leer_no_vacio, leer_opcion, pausar
 from app.core.exceptions import AppError
 from app.domain.envio import Envio
+from app.services.envio_contenedor_service import EnvioContenedorService
 from app.services.envio_service import EnvioService
 
 _PRIORIDADES = {"baja", "normal", "alta", "urgente"}
@@ -75,12 +76,44 @@ def _listado_por_cliente(service: EnvioService) -> None:
         _imprimir(e)
 
 
+def _asignar_contenedor(_: EnvioService) -> None:
+    print("\n-- Asignar Contenedor a Envío --")
+    service = EnvioContenedorService()
+    id_envio = leer_entero("ID de envío")
+    id_contenedor = leer_entero("ID de contenedor")
+    service.asignar_contenedor(id_envio, id_contenedor)
+    print("Contenedor asignado.")
+
+
+def _quitar_contenedor(_: EnvioService) -> None:
+    print("\n-- Quitar Contenedor de Envío --")
+    service = EnvioContenedorService()
+    id_envio = leer_entero("ID de envío")
+    id_contenedor = leer_entero("ID de contenedor")
+    service.quitar_contenedor(id_envio, id_contenedor)
+    print("Contenedor quitado.")
+
+
+def _contenedores_de_envio(_: EnvioService) -> None:
+    print("\n-- Contenedores de un Envío --")
+    service = EnvioContenedorService()
+    id_envio = leer_entero("ID de envío")
+    contenedores = service.listar_contenedores_de_envio(id_envio)
+    if not contenedores:
+        print("  Ese envío no tiene contenedores asignados.")
+    for c in contenedores:
+        print(f"  [{c.id_contenedor}] {c.codigo_internacional} | {c.tipo} | cap. {c.capacidad} | {c.estado}")
+
+
 _ACCIONES = {
     "1": ("Alta", _alta),
     "2": ("Baja", _baja),
     "3": ("Modificación", _modificacion),
     "4": ("Listado", _listado),
     "5": ("Envíos de un cliente", _listado_por_cliente),
+    "6": ("Asignar contenedor", _asignar_contenedor),
+    "7": ("Quitar contenedor", _quitar_contenedor),
+    "8": ("Contenedores de un envío", _contenedores_de_envio),
 }
 
 

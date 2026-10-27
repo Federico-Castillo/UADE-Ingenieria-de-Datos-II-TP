@@ -11,6 +11,7 @@ from app.cli.factura_menu import menu_factura
 from app.cli.factura_recibida_menu import menu_factura_recibida
 from app.cli.grupo_trabajo_menu import menu_grupo_trabajo
 from app.cli.incidente_menu import menu_incidente
+from app.cli.lectura_sensor_menu import menu_lectura_sensor
 from app.cli.mensaje_menu import menu_mensaje
 from app.cli.operador_logistico_menu import menu_operador_logistico
 from app.cli.pago_emitido_menu import menu_pago_emitido
@@ -27,7 +28,6 @@ from app.cli.usuario_menu import menu_usuario
 from app.cli.vehiculo_menu import menu_vehiculo
 
 _PROXIMAMENTE = [
-    "Monitoreo IoT (lecturas en Cassandra)",
     "Inteligencia Analítica (rankings, scikit-learn)",
 ]
 
@@ -64,6 +64,7 @@ def menu_principal() -> None:
         ("Grupos de Trabajo (Mongo)", menu_grupo_trabajo),
         ("Predicciones de Riesgo (Mongo)", menu_prediccion_riesgo),
         ("Tramos y Rutas (Neo4j)", menu_tramo),
+        ("Monitoreo IoT: Lecturas de Sensor (Cassandra)", menu_lectura_sensor),
     ]
     opciones += [(nombre, lambda n=nombre: _mostrar_proximamente(n)) for nombre in _PROXIMAMENTE]
 

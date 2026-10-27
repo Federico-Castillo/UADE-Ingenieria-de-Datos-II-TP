@@ -12,12 +12,14 @@ from app.repositories.cliente_repository import ClienteRepository
 from app.repositories.contenedor_repository import ContenedorRepository
 from app.repositories.cuenta_corriente_pagable_repository import CuentaCorrientePagableRepository
 from app.repositories.cuenta_corriente_repository import CuentaCorrienteRepository
+from app.repositories.envio_contenedor_repository import EnvioContenedorRepository
 from app.repositories.envio_repository import EnvioRepository
 from app.repositories.evento_logistico_repository import EventoLogisticoRepository
 from app.repositories.factura_recibida_repository import FacturaRecibidaRepository
 from app.repositories.factura_repository import FacturaRepository
 from app.repositories.grupo_trabajo_repository import GrupoTrabajoRepository
 from app.repositories.incidente_repository import IncidenteRepository
+from app.repositories.lectura_sensor_repository import LecturaSensorRepository
 from app.repositories.mensaje_repository import MensajeRepository
 from app.repositories.pago_emitido_repository import PagoEmitidoRepository
 from app.repositories.pago_repository import PagoRepository
@@ -95,6 +97,30 @@ def vehiculo_repo(mysql_connection) -> VehiculoRepository:
 @pytest.fixture
 def envio_repo(mysql_connection) -> EnvioRepository:
     return EnvioRepository()
+
+
+@pytest.fixture
+def envio_contenedor_repo(mysql_connection) -> EnvioContenedorRepository:
+    return EnvioContenedorRepository()
+
+
+@pytest.fixture
+def lectura_sensor_repo() -> LecturaSensorRepository:
+    return LecturaSensorRepository()
+
+
+@pytest.fixture
+def sensores_cassandra_usados(lectura_sensor_repo):
+    """lecturas_sensor particiona por id_sensor: se trackean los id_sensor
+    usados en el test y se borra la partición completa al final (más
+    eficiente y simple que filtrar por prefijo, que Cassandra no soporta
+    bien fuera de la partition key)."""
+    usados: list[int] = []
+    yield usados
+    for id_sensor in usados:
+        lectura_sensor_repo._session.execute(
+            "DELETE FROM lecturas_sensor WHERE id_sensor = %s", (id_sensor,)
+        )
 
 
 @pytest.fixture
@@ -202,6 +228,12 @@ def limpiar_datos_de_test(mysql_connection):
             # Orden por dependencias de FK (hijos antes que padres).
             cursor.execute("DELETE FROM reporte WHERE tipo LIKE %s", (f"{TEST_PREFIX}%",))
             cursor.execute("DELETE FROM regla WHERE nombre LIKE %s", (f"{TEST_PREFIX}%",))
+            cursor.execute(
+                "DELETE FROM envio_contenedor WHERE "
+                "id_envio IN (SELECT id_envio FROM envio WHERE origen LIKE %s) OR "
+                "id_contenedor IN (SELECT id_contenedor FROM contenedor WHERE codigo_internacional LIKE %s)",
+                (f"{TEST_PREFIX}%", f"{TEST_PREFIX}%"),
+            )
             cursor.execute("DELETE FROM envio WHERE origen LIKE %s", (f"{TEST_PREFIX}%",))
             cursor.execute(
                 "DELETE FROM sensor_iot WHERE id_contenedor IN "
@@ -266,6 +298,10 @@ def limpiar_mongo_de_test():
         db["incidentes"].delete_many({"tipo": {"$regex": f"^{TEST_PREFIX}"}})
         db["mensajes"].delete_many({"contenido": {"$regex": f"^{TEST_PREFIX}"}})
         db["grupos_trabajo"].delete_many({"nombre": {"$regex": f"^{TEST_PREFIX}"}})
+        # Los incidentes que dispara el pipeline de LecturaSensor no tienen un
+        # "tipo" prefijado con TEST_ (es fijo: "anomalia_{tipo_sensor}"), pero
+        # su descripción sí menciona el nombre de la regla que los generó.
+        db["incidentes"].delete_many({"descripcion": {"$regex": TEST_PREFIX}})
 
     _borrar()
     yield

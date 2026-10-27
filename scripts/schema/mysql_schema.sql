@@ -110,6 +110,21 @@ CREATE TABLE envio (
     ON UPDATE CASCADE ON DELETE RESTRICT
 );
 
+-- Relación N:M entre Envío y Contenedor: un envío puede llevar varios
+-- contenedores, y un contenedor puede reutilizarse en envíos distintos a lo
+-- largo del tiempo (por eso fecha_asignacion, para poder determinar el envío
+-- "actual" de un contenedor sin depender de fecha_creacion del envío).
+CREATE TABLE envio_contenedor (
+  id_envio INT NOT NULL,
+  id_contenedor INT NOT NULL,
+  fecha_asignacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id_envio, id_contenedor),
+  CONSTRAINT fk_enviocontenedor_envio FOREIGN KEY (id_envio) REFERENCES envio(id_envio)
+    ON UPDATE CASCADE ON DELETE RESTRICT,
+  CONSTRAINT fk_enviocontenedor_contenedor FOREIGN KEY (id_contenedor) REFERENCES contenedor(id_contenedor)
+    ON UPDATE CASCADE ON DELETE RESTRICT
+);
+
 CREATE TABLE vehiculo (
   id_vehiculo INT AUTO_INCREMENT PRIMARY KEY,
   tipo VARCHAR(50) NOT NULL,
@@ -221,3 +236,4 @@ CREATE INDEX idx_facturarecibida_proveedor_estado ON factura_recibida (id_provee
 CREATE INDEX idx_facturarecibida_operador_estado ON factura_recibida (id_operador_logistico, estado);
 CREATE INDEX idx_sensor_contenedor_estado ON sensor_iot (id_contenedor, estado);
 CREATE INDEX idx_regla_tipo_estado ON regla (tipo_sensor, estado);
+CREATE INDEX idx_enviocontenedor_contenedor ON envio_contenedor (id_contenedor);
