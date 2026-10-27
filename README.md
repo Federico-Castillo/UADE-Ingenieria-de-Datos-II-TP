@@ -64,12 +64,28 @@ Inteligencia Analítica queda como "próximamente" en el menú.
 > Usuario) lee directo de la consola, no de stdin redirigido — no se puede
 > automatizar ese flujo por pipe, solo funciona en una terminal interactiva real.
 
+## Simulador de sensores IoT
+
+No hay hardware real (decisión de alcance del TP). Este script inserta
+lecturas sintéticas en Cassandra para los sensores ya dados de alta (menú
+"Gestión de Sensores IoT"), con valores normales la mayor parte del tiempo y
+anomalías ocasionales que disparan el pipeline completo
+Cassandra → MongoDB → Redis (Incidente + Alerta) si hay una Regla activa para
+ese tipo de sensor:
+
+```bash
+python scripts/simulador_iot.py                        # loop cada 10s hasta Ctrl+C
+python scripts/simulador_iot.py --once                  # un solo tick y termina
+python scripts/simulador_iot.py --interval 5 --anomaly-prob 0.2
+```
+
 ## Tests
 
 Requieren `docker-compose up -d` y el esquema de MySQL ya creado:
 
 ```bash
-python -m pytest -m integration -v
+python -m pytest -m integration -v   # tests de integración (contra las DB reales)
+python -m pytest -v                  # + los unitarios (ej. lógica del simulador, sin DB)
 ```
 
 ## Logs
@@ -80,8 +96,12 @@ Se escriben en `logs/app.log` (nivel controlado por `LOG_LEVEL` en `.env`).
 
 - Acceso a MySQL con SQL parametrizado (`mysql-connector-python`) dentro de
   clases Repository, sin ORM.
-- `app/db/` tiene un módulo de conexión por motor, reusable por futuros scripts
-  (ej. el simulador de sensores IoT reusará `app/db/cassandra_client.py`).
+- `app/db/` tiene un módulo de conexión por motor, reusado tal cual por
+  `scripts/simulador_iot.py` (vía `LecturaSensorService`/`SensorIoTRepository`,
+  sin nada atado a la CLI).
+- `CAMPO_POR_TIPO_SENSOR` vive en `app/domain/lectura_sensor.py` (no en el
+  Service) justamente para que el simulador y `LecturaSensorService` usen el
+  mismo mapeo tipo→campo sin duplicarlo.
 - Jerarquía de excepciones propia en `app/core/exceptions.py`; el Repository
   traduce errores de driver, el Service valida reglas de negocio, la CLI es la
   única capa que atrapa excepciones para mostrarlas sin traceback.

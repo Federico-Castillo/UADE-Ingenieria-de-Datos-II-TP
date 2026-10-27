@@ -9,7 +9,7 @@ from datetime import datetime
 
 from app.core.exceptions import AppError, RepositoryError, ValidationError
 from app.domain.incidente import Incidente
-from app.domain.lectura_sensor import LecturaSensor
+from app.domain.lectura_sensor import CAMPO_POR_TIPO_SENSOR, LecturaSensor
 from app.repositories.envio_contenedor_repository import EnvioContenedorRepository
 from app.repositories.lectura_sensor_repository import LecturaSensorRepository
 from app.repositories.regla_repository import ReglaRepository
@@ -18,13 +18,6 @@ from app.services.alerta_service import AlertaService
 from app.services.incidente_service import IncidenteService
 
 logger = logging.getLogger(__name__)
-
-_CAMPO_POR_TIPO_SENSOR = {
-    "temperatura": "temperatura",
-    "humedad": "humedad",
-    "vibracion": "vibracion",
-    "bateria": "nivel_bateria",
-}
 
 _COMPARADORES = {
     ">": lambda v, u: v > u,
@@ -84,7 +77,7 @@ class LecturaSensorService:
     def _evaluar_reglas(self, sensor, lectura: LecturaSensor) -> None:
         reglas = self._regla_repo.listar_por_tipo_sensor(sensor.tipo)
         for regla in reglas:
-            campo = _CAMPO_POR_TIPO_SENSOR.get(regla.tipo_sensor)
+            campo = CAMPO_POR_TIPO_SENSOR.get(regla.tipo_sensor)
             valor = getattr(lectura, campo, None) if campo else None
             if valor is None:
                 continue
