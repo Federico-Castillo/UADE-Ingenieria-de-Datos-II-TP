@@ -13,18 +13,25 @@ from app.repositories.contenedor_repository import ContenedorRepository
 from app.repositories.cuenta_corriente_pagable_repository import CuentaCorrientePagableRepository
 from app.repositories.cuenta_corriente_repository import CuentaCorrienteRepository
 from app.repositories.envio_repository import EnvioRepository
+from app.repositories.evento_logistico_repository import EventoLogisticoRepository
 from app.repositories.factura_recibida_repository import FacturaRecibidaRepository
 from app.repositories.factura_repository import FacturaRepository
+from app.repositories.grupo_trabajo_repository import GrupoTrabajoRepository
+from app.repositories.incidente_repository import IncidenteRepository
+from app.repositories.mensaje_repository import MensajeRepository
 from app.repositories.pago_emitido_repository import PagoEmitidoRepository
 from app.repositories.pago_repository import PagoRepository
 from app.repositories.operador_logistico_repository import OperadorLogisticoRepository
+from app.repositories.prediccion_riesgo_repository import PrediccionRiesgoRepository
 from app.repositories.proveedor_repository import ProveedorRepository
 from app.repositories.regla_repository import ReglaRepository
+from app.repositories.reporte_repository import ReporteRepository
 from app.repositories.rol_repository import RolRepository
 from app.repositories.sensor_iot_repository import SensorIoTRepository
 from app.repositories.sesion_repository import SesionRepository
 from app.repositories.usuario_repository import UsuarioRepository
 from app.repositories.vehiculo_repository import VehiculoRepository
+from app.db.mongo import get_db
 
 TEST_PREFIX = "TEST_"
 
@@ -124,6 +131,36 @@ def cuenta_corriente_pagable_repo(mysql_connection) -> CuentaCorrientePagableRep
 
 
 @pytest.fixture
+def reporte_repo(mysql_connection) -> ReporteRepository:
+    return ReporteRepository()
+
+
+@pytest.fixture
+def evento_logistico_repo() -> EventoLogisticoRepository:
+    return EventoLogisticoRepository()
+
+
+@pytest.fixture
+def incidente_repo() -> IncidenteRepository:
+    return IncidenteRepository()
+
+
+@pytest.fixture
+def mensaje_repo() -> MensajeRepository:
+    return MensajeRepository()
+
+
+@pytest.fixture
+def grupo_trabajo_repo() -> GrupoTrabajoRepository:
+    return GrupoTrabajoRepository()
+
+
+@pytest.fixture
+def prediccion_riesgo_repo() -> PrediccionRiesgoRepository:
+    return PrediccionRiesgoRepository()
+
+
+@pytest.fixture
 def sesion_repo() -> SesionRepository:
     return SesionRepository()
 
@@ -156,6 +193,7 @@ def limpiar_datos_de_test(mysql_connection):
     def _borrar():
         with transaction() as cursor:
             # Orden por dependencias de FK (hijos antes que padres).
+            cursor.execute("DELETE FROM reporte WHERE tipo LIKE %s", (f"{TEST_PREFIX}%",))
             cursor.execute("DELETE FROM regla WHERE nombre LIKE %s", (f"{TEST_PREFIX}%",))
             cursor.execute("DELETE FROM envio WHERE origen LIKE %s", (f"{TEST_PREFIX}%",))
             cursor.execute(
@@ -211,3 +249,30 @@ def limpiar_datos_de_test(mysql_connection):
     _borrar()
     yield
     _borrar()
+
+
+@pytest.fixture(autouse=True)
+def limpiar_mongo_de_test():
+    def _borrar():
+        db = get_db()
+        db["eventos_logisticos"].delete_many({"tipo_evento": {"$regex": f"^{TEST_PREFIX}"}})
+        db["incidentes"].delete_many({"tipo": {"$regex": f"^{TEST_PREFIX}"}})
+        db["mensajes"].delete_many({"contenido": {"$regex": f"^{TEST_PREFIX}"}})
+        db["grupos_trabajo"].delete_many({"nombre": {"$regex": f"^{TEST_PREFIX}"}})
+
+    _borrar()
+    yield
+    _borrar()
+
+
+@pytest.fixture
+def predicciones_creadas():
+    """predicciones_riesgo no tiene un campo string para prefijar con TEST_
+    (son todos números), así que se trackean los ids creados y se borran por
+    _id al final en vez de por patrón."""
+    from bson import ObjectId
+
+    creadas: list[str] = []
+    yield creadas
+    if creadas:
+        get_db()["predicciones_riesgo"].delete_many({"_id": {"$in": [ObjectId(i) for i in creadas]}})

@@ -45,11 +45,14 @@ python main.py
 
 Implementados de punta a punta: Clientes, Usuarios, Roles, Sesiones (Redis),
 Proveedores, Operadores Logísticos, Contenedores, Sensores IoT, Vehículos,
-Envíos, Reglas, Alertas (Redis), Facturas/Pagos/Cuentas Corrientes (clientes)
-y Facturas Recibidas/Pagos Emitidos/Cuentas Corrientes Pagables (proveedores/
-operadores) — el alta de factura/pago actualiza el saldo correspondiente de
-forma transaccional en ambos circuitos. El resto de las opciones del menú
-principal están reservadas como "próximamente".
+Envíos, Reglas, Alertas (Redis), Facturas/Pagos/Cuentas Corrientes (clientes),
+Facturas Recibidas/Pagos Emitidos/Cuentas Corrientes Pagables (proveedores/
+operadores), Reportes, y Eventos Logísticos/Incidentes/Mensajería/Grupos de
+Trabajo/Predicciones de Riesgo (MongoDB) — el alta de factura/pago actualiza
+el saldo correspondiente de forma transaccional, y los Services de Mongo
+validan sus referencias a MySQL en la capa de aplicación (no hay FK nativas
+cross-engine). El resto de las opciones del menú principal (Neo4j, Cassandra,
+Inteligencia Analítica) están reservadas como "próximamente".
 
 > **Nota Windows:** `getpass.getpass()` (usado para la contraseña en el alta de
 > Usuario) lee directo de la consola, no de stdin redirigido — no se puede
