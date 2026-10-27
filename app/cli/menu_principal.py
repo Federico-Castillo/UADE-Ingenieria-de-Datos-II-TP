@@ -1,5 +1,4 @@
-"""Menú principal de la aplicación. Las entidades aún no implementadas quedan
-como placeholder para no tener que tocar esta estructura en sesiones futuras."""
+"""Menú principal de la aplicación."""
 from app.cli.alerta_menu import menu_alerta
 from app.cli.cierre_cuenta_corriente_menu import menu_cierre_cuenta_corriente
 from app.cli.cliente_menu import menu_cliente
@@ -30,16 +29,6 @@ from app.cli.sesion_menu import menu_sesion
 from app.cli.tramo_menu import menu_tramo
 from app.cli.usuario_menu import menu_usuario
 from app.cli.vehiculo_menu import menu_vehiculo
-
-_PROXIMAMENTE = [
-    "Inteligencia Analítica (rankings, scikit-learn)",
-]
-
-
-def _mostrar_proximamente(nombre: str) -> None:
-    print(f"\n'{nombre}' todavía no está implementado.")
-    input("\nPresioná Enter para continuar...")
-
 
 def menu_principal() -> None:
     opciones = [
@@ -74,7 +63,6 @@ def menu_principal() -> None:
         ("Detección de Sensores Inactivos (proceso periódico)", menu_sensor_inactivo),
         ("Worker de Outbox (sincronización MySQL -> Neo4j)", menu_outbox),
     ]
-    opciones += [(nombre, lambda n=nombre: _mostrar_proximamente(n)) for nombre in _PROXIMAMENTE]
 
     while True:
         print("\n===== TP Persistencia Políglota — Menú Principal =====")

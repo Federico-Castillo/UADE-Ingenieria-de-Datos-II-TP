@@ -54,9 +54,10 @@ Avanzadas" de la consigna: ruta completa de un envío y red de relaciones
 cliente-operador, más costos por tipo de transporte), Monitoreo IoT
 (Cassandra), Reportes Operativos y Analíticos (agregaciones cross-engine:
 envíos por país/estado/cliente, tiempos de entrega, incidentes promedio,
-análisis predictivo de riesgos, rankings de rutas/clientes), y el Worker de
-Outbox (sincronización MySQL -> Neo4j del desafío de complejidad adicional)
-— el alta de factura/pago
+análisis predictivo de riesgos, rankings de rutas/clientes), el Worker de
+Outbox (sincronización MySQL -> Neo4j del desafío de complejidad adicional),
+predicción real de atrasos con scikit-learn, y visualización geográfica de
+GPS (mapa HTML por contenedor) — el alta de factura/pago
 actualiza el saldo de forma transaccional, y los Services de Mongo/Neo4j/
 Cassandra validan sus referencias a MySQL en la capa de aplicación (no hay FK
 nativas cross-engine). **Los 5 motores del TP ya tienen código real.** El
@@ -67,7 +68,7 @@ periódicos de la consigna ya implementados: Cierre Mensual de Cuentas
 Corrientes (snapshot idempotente del saldo por período, clientes y
 proveedores/operadores) y Detección de Sensores Inactivos (compara la última
 lectura en Cassandra contra un umbral de horas, marca el sensor y genera una
-Alerta). Solo Inteligencia Analítica queda como "próximamente" en el menú.
+Alerta). No queda nada como "próximamente" en el menú.
 
 > **Nota Windows:** `getpass.getpass()` (usado para la contraseña en el alta de
 > Usuario) lee directo de la consola, no de stdin redirigido — no se puede
@@ -173,6 +174,30 @@ python worker/outbox_worker.py --once          # un solo ciclo y termina
 
 También hay un menú "Worker de Outbox" en `main.py` para inspeccionar
 pendientes/dead-letter y correr un ciclo manual sin salir de la app.
+
+## Predicción de atrasos con scikit-learn
+
+Menú "Predicciones de Riesgo" -> "Calcular predicciones reales con
+scikit-learn" (`app/services/prediccion_ml_service.py`): entrena un
+`LogisticRegression` sobre los envíos con resultado conocido
+(`estado` `entregado`/`demorado`) y predice la probabilidad de demora de los
+que todavía están `pendiente`/`en_transito`, persistiendo el resultado en
+`PrediccionRiesgo` (Mongo) — reemplaza la carga manual por un cálculo real.
+Features: prioridad, medio de transporte del primer tramo, tasa histórica
+de demora del cliente (sobre sus otros envíos, nunca el propio, para no
+entrenar con fuga del resultado) y cantidad de envíos previos del cliente.
+Valida que haya suficientes muestras y más de una clase antes de entrenar.
+
+## Visualización geográfica de GPS
+
+La app es de consola — no hay ventana propia donde dibujar un mapa — así
+que "visualizar" las posiciones GPS de un contenedor es generar un archivo
+HTML standalone (folium/Leaflet) que se abre aparte en el navegador. Menú
+"Monitoreo IoT: Lecturas de Sensor" -> "Generar mapa GPS de un contenedor":
+usa `LecturaSensorService.listar_por_contenedor()` (nuevo — combina y
+ordena las lecturas de TODOS los sensores del contenedor, no de uno en
+particular, resolviendo de paso la reconstrucción del recorrido) y guarda
+el mapa en `output/mapas/contenedor_{id}.html` (gitignored).
 
 ## Logs
 

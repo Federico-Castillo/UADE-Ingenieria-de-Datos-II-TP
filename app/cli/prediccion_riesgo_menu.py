@@ -1,8 +1,10 @@
-"""Menú de PrediccionRiesgo (MongoDB). El alta manual simula el resultado de
-un proceso de predicción (scikit-learn, pendiente de implementar)."""
+"""Menú de PrediccionRiesgo (MongoDB). El alta manual sigue disponible para
+casos puntuales; la opción 4 corre el proceso real de predicción con
+scikit-learn (ver app/services/prediccion_ml_service.py)."""
 from app.cli.io_utils import leer_decimal, leer_entero, pausar
 from app.core.exceptions import AppError
 from app.domain.prediccion_riesgo import PrediccionRiesgo
+from app.services.prediccion_ml_service import PrediccionMLService
 from app.services.prediccion_riesgo_service import PrediccionRiesgoService
 
 
@@ -45,10 +47,20 @@ def _listado_por_envio(service: PrediccionRiesgoService) -> None:
         _imprimir(p)
 
 
+def _calcular_con_ml(_: PrediccionRiesgoService) -> None:
+    print("\n-- Calcular Predicciones con scikit-learn --")
+    predicciones = PrediccionMLService().calcular_predicciones()
+    if not predicciones:
+        print("  No hay envíos pendientes/en tránsito para predecir.")
+    for p in predicciones:
+        print(f"  envío {p.id_envio}: probabilidad de demora {p.probabilidad_demora:.2%}")
+
+
 _ACCIONES = {
-    "1": ("Registrar predicción", _registrar),
+    "1": ("Registrar predicción (manual)", _registrar),
     "2": ("Última predicción de un envío", _ultima_por_envio),
     "3": ("Historial de un envío", _listado_por_envio),
+    "4": ("Calcular predicciones reales con scikit-learn", _calcular_con_ml),
 }
 
 

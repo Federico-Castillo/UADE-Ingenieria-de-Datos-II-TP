@@ -1,13 +1,16 @@
 """Menú de LecturaSensor (Cassandra). Cubre "Monitoreo IoT": registro
-continuo de lecturas, consulta histórica, y el disparo automático de
+continuo de lecturas, consulta histórica, el disparo automático de
 Incidente (Mongo) + Alerta (Redis) cuando una lectura viola una Regla activa
-del tipo de sensor correspondiente."""
+del tipo de sensor correspondiente, la reconstrucción del recorrido de un
+contenedor (combinando todos sus sensores), y la visualización geográfica
+del recorrido en un mapa HTML."""
 from datetime import datetime
 
 from app.cli.io_utils import leer_entero, pausar
 from app.core.exceptions import AppError
 from app.domain.lectura_sensor import LecturaSensor
 from app.services.lectura_sensor_service import LecturaSensorService
+from app.services.mapa_service import MapaService
 
 
 def _leer_decimal_opcional(etiqueta: str) -> float | None:
@@ -85,11 +88,31 @@ def _ultima(service: LecturaSensorService) -> None:
         _imprimir(lectura)
 
 
+def _recorrido_contenedor(service: LecturaSensorService) -> None:
+    print("\n-- Reconstrucción del Recorrido de un Contenedor --")
+    id_contenedor = leer_entero("ID de contenedor")
+    lecturas = service.listar_por_contenedor(id_contenedor)
+    if not lecturas:
+        print("  Ese contenedor no tiene lecturas todavía.")
+    for l in lecturas:
+        _imprimir(l)
+
+
+def _generar_mapa(_: LecturaSensorService) -> None:
+    print("\n-- Generar Mapa GPS de un Contenedor --")
+    id_contenedor = leer_entero("ID de contenedor")
+    ruta = MapaService().generar_mapa_contenedor(id_contenedor)
+    print(f"Mapa generado: {ruta}")
+    print("Abrilo con el navegador para verlo.")
+
+
 _ACCIONES = {
     "1": ("Registrar lectura", _registrar),
     "2": ("Últimas lecturas de un sensor", _listado_por_sensor),
     "3": ("Lecturas por rango de fechas", _listado_por_rango),
     "4": ("Última lectura de un sensor", _ultima),
+    "5": ("Reconstrucción del recorrido de un contenedor", _recorrido_contenedor),
+    "6": ("Generar mapa GPS de un contenedor (HTML)", _generar_mapa),
 }
 
 

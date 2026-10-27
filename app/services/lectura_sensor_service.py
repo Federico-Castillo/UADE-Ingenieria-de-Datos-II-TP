@@ -10,6 +10,7 @@ from datetime import datetime
 from app.core.exceptions import AppError, RepositoryError, ValidationError
 from app.domain.incidente import Incidente
 from app.domain.lectura_sensor import CAMPO_POR_TIPO_SENSOR, LecturaSensor
+from app.repositories.contenedor_repository import ContenedorRepository
 from app.repositories.envio_contenedor_repository import EnvioContenedorRepository
 from app.repositories.lectura_sensor_repository import LecturaSensorRepository
 from app.repositories.regla_repository import ReglaRepository
@@ -37,6 +38,7 @@ class LecturaSensorService:
         envio_contenedor_repository: EnvioContenedorRepository | None = None,
         incidente_service: IncidenteService | None = None,
         alerta_service: AlertaService | None = None,
+        contenedor_repository: ContenedorRepository | None = None,
     ):
         self._repo = repository or LecturaSensorRepository()
         self._sensor_repo = sensor_repository or SensorIoTRepository()
@@ -44,6 +46,7 @@ class LecturaSensorService:
         self._envio_contenedor_repo = envio_contenedor_repository or EnvioContenedorRepository()
         self._incidente_service = incidente_service or IncidenteService()
         self._alerta_service = alerta_service or AlertaService()
+        self._contenedor_repo = contenedor_repository or ContenedorRepository()
 
     def registrar_lectura(self, lectura: LecturaSensor) -> LecturaSensor:
         sensor = self._sensor_repo.obtener_por_id(lectura.id_sensor)
@@ -73,6 +76,20 @@ class LecturaSensorService:
         if self._sensor_repo.obtener_por_id(id_sensor) is None:
             raise ValidationError(f"No existe el sensor con id {id_sensor}.")
         return self._repo.ultima_por_sensor(id_sensor)
+
+    def listar_por_contenedor(self, id_contenedor: int, limite: int = 200) -> list[LecturaSensor]:
+        """Reconstruye el recorrido de un contenedor combinando las lecturas
+        de TODOS sus sensores (no de uno en particular), ordenadas por
+        fecha_hora — lo que separadamente expone LecturaSensorRepository por
+        id_sensor (su partition key en Cassandra) no alcanza para "el
+        recorrido del contenedor" si tiene más de un sensor."""
+        if self._contenedor_repo.obtener_por_id(id_contenedor) is None:
+            raise ValidationError(f"No existe el contenedor con id {id_contenedor}.")
+        lecturas = []
+        for sensor in self._sensor_repo.listar_por_contenedor(id_contenedor):
+            lecturas.extend(self._repo.listar_por_sensor(sensor.id_sensor, limite=limite))
+        lecturas.sort(key=lambda l: l.fecha_hora)
+        return lecturas
 
     def _evaluar_reglas(self, sensor, lectura: LecturaSensor) -> None:
         reglas = self._regla_repo.listar_por_tipo_sensor(sensor.tipo)

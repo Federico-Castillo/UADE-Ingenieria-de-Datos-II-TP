@@ -79,6 +79,17 @@ RETURN t.medio_transporte AS medio_transporte, count(t) AS cantidad_tramos,
 ORDER BY medio_transporte
 """
 
+# Usado como feature por PrediccionMLService: el medio de transporte del
+# PRIMER tramo de cada envío (por r.orden) -- "sort antes de collect" es el
+# patrón idiomático de Cypher para quedarse con el primero de cada grupo.
+_MEDIO_PRINCIPAL_POR_ENVIO = """
+MATCH (e:Envio)-[r:INCLUYE]->(t:Tramo)
+WITH e, t, r
+ORDER BY r.orden ASC
+WITH e, collect(t)[0] AS primer_tramo
+RETURN e.id_envio AS id_envio, primer_tramo.medio_transporte AS medio_transporte
+"""
+
 
 class TramoRepository:
     def crear(
@@ -155,3 +166,12 @@ class TramoRepository:
         except Neo4jError as e:
             logger.exception("Error calculando costos por medio de transporte")
             raise RepositoryError(f"No se pudo calcular los costos por medio de transporte: {e}") from e
+
+    def medio_transporte_principal_por_envio(self) -> dict[int, str]:
+        try:
+            with session() as sess:
+                result = sess.run(_MEDIO_PRINCIPAL_POR_ENVIO)
+                return {r["id_envio"]: r["medio_transporte"] for r in result}
+        except Neo4jError as e:
+            logger.exception("Error calculando el medio de transporte principal por envío")
+            raise RepositoryError(f"No se pudo calcular el medio de transporte por envío: {e}") from e
