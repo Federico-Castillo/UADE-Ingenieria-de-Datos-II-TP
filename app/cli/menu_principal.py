@@ -3,8 +3,11 @@ como placeholder para no tener que tocar esta estructura en sesiones futuras."""
 from app.cli.alerta_menu import menu_alerta
 from app.cli.cliente_menu import menu_cliente
 from app.cli.contenedor_menu import menu_contenedor
+from app.cli.cuenta_corriente_menu import menu_cuenta_corriente
 from app.cli.envio_menu import menu_envio
+from app.cli.factura_menu import menu_factura
 from app.cli.operador_logistico_menu import menu_operador_logistico
+from app.cli.pago_menu import menu_pago
 from app.cli.proveedor_menu import menu_proveedor
 from app.cli.regla_menu import menu_regla
 from app.cli.rol_menu import menu_rol
@@ -14,7 +17,7 @@ from app.cli.usuario_menu import menu_usuario
 from app.cli.vehiculo_menu import menu_vehiculo
 
 _PROXIMAMENTE = [
-    "Cuenta Corriente y Facturación",
+    "Cuenta Corriente y Facturación (proveedores/operadores)",
     "Monitoreo IoT (lecturas en Cassandra)",
     "Trazabilidad de envíos (eventos en Mongo, ruta en Neo4j)",
     "Mensajería",
@@ -42,6 +45,9 @@ def menu_principal() -> None:
         ("Gestión de Envíos", menu_envio),
         ("Gestión de Reglas", menu_regla),
         ("Gestión de Alertas", menu_alerta),
+        ("Gestión de Facturas (clientes)", menu_factura),
+        ("Gestión de Pagos (clientes)", menu_pago),
+        ("Cuentas Corrientes (clientes)", menu_cuenta_corriente),
     ]
     opciones += [(nombre, lambda n=nombre: _mostrar_proximamente(n)) for nombre in _PROXIMAMENTE]
 

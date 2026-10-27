@@ -10,7 +10,10 @@ from app.db.mysql import get_cursor, transaction
 from app.repositories.alerta_repository import AlertaRepository
 from app.repositories.cliente_repository import ClienteRepository
 from app.repositories.contenedor_repository import ContenedorRepository
+from app.repositories.cuenta_corriente_repository import CuentaCorrienteRepository
 from app.repositories.envio_repository import EnvioRepository
+from app.repositories.factura_repository import FacturaRepository
+from app.repositories.pago_repository import PagoRepository
 from app.repositories.operador_logistico_repository import OperadorLogisticoRepository
 from app.repositories.proveedor_repository import ProveedorRepository
 from app.repositories.regla_repository import ReglaRepository
@@ -88,6 +91,21 @@ def regla_repo(mysql_connection) -> ReglaRepository:
 
 
 @pytest.fixture
+def factura_repo(mysql_connection) -> FacturaRepository:
+    return FacturaRepository()
+
+
+@pytest.fixture
+def pago_repo(mysql_connection) -> PagoRepository:
+    return PagoRepository()
+
+
+@pytest.fixture
+def cuenta_corriente_repo(mysql_connection) -> CuentaCorrienteRepository:
+    return CuentaCorrienteRepository()
+
+
+@pytest.fixture
 def sesion_repo() -> SesionRepository:
     return SesionRepository()
 
@@ -128,6 +146,22 @@ def limpiar_datos_de_test(mysql_connection):
                 (f"{TEST_PREFIX}%",),
             )
             cursor.execute("DELETE FROM usuario WHERE nombre LIKE %s", (f"{TEST_PREFIX}%",))
+            cursor.execute(
+                "DELETE FROM pago WHERE id_factura IN "
+                "(SELECT id_factura FROM factura WHERE id_cliente IN "
+                "(SELECT id_cliente FROM cliente WHERE razon_social LIKE %s))",
+                (f"{TEST_PREFIX}%",),
+            )
+            cursor.execute(
+                "DELETE FROM factura WHERE id_cliente IN "
+                "(SELECT id_cliente FROM cliente WHERE razon_social LIKE %s)",
+                (f"{TEST_PREFIX}%",),
+            )
+            cursor.execute(
+                "DELETE FROM cuenta_corriente WHERE id_cliente IN "
+                "(SELECT id_cliente FROM cliente WHERE razon_social LIKE %s)",
+                (f"{TEST_PREFIX}%",),
+            )
             cursor.execute("DELETE FROM cliente WHERE razon_social LIKE %s", (f"{TEST_PREFIX}%",))
             cursor.execute("DELETE FROM rol WHERE descripcion LIKE %s", (f"{TEST_PREFIX}%",))
             cursor.execute("DELETE FROM proveedor WHERE razon_social LIKE %s", (f"{TEST_PREFIX}%",))
