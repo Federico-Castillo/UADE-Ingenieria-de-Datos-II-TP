@@ -15,6 +15,7 @@ from app.cli.incidente_menu import menu_incidente
 from app.cli.lectura_sensor_menu import menu_lectura_sensor
 from app.cli.mensaje_menu import menu_mensaje
 from app.cli.operador_logistico_menu import menu_operador_logistico
+from app.cli.outbox_menu import menu_outbox
 from app.cli.pago_emitido_menu import menu_pago_emitido
 from app.cli.pago_menu import menu_pago
 from app.cli.prediccion_riesgo_menu import menu_prediccion_riesgo
@@ -71,6 +72,7 @@ def menu_principal() -> None:
         ("Monitoreo IoT: Lecturas de Sensor (Cassandra)", menu_lectura_sensor),
         ("Cierre Mensual de Cuentas Corrientes (proceso periódico)", menu_cierre_cuenta_corriente),
         ("Detección de Sensores Inactivos (proceso periódico)", menu_sensor_inactivo),
+        ("Worker de Outbox (sincronización MySQL -> Neo4j)", menu_outbox),
     ]
     opciones += [(nombre, lambda n=nombre: _mostrar_proximamente(n)) for nombre in _PROXIMAMENTE]
 

@@ -26,6 +26,7 @@ from app.repositories.mensaje_repository import MensajeRepository
 from app.repositories.pago_emitido_repository import PagoEmitidoRepository
 from app.repositories.pago_repository import PagoRepository
 from app.repositories.operador_logistico_repository import OperadorLogisticoRepository
+from app.repositories.outbox_repository import OutboxRepository
 from app.repositories.prediccion_riesgo_repository import PrediccionRiesgoRepository
 from app.repositories.proveedor_repository import ProveedorRepository
 from app.repositories.regla_repository import ReglaRepository
@@ -161,6 +162,11 @@ def cuenta_corriente_pagable_repo(mysql_connection) -> CuentaCorrientePagableRep
 
 
 @pytest.fixture
+def outbox_repo(mysql_connection) -> OutboxRepository:
+    return OutboxRepository()
+
+
+@pytest.fixture
 def cierre_cuenta_corriente_repo(mysql_connection) -> CierreCuentaCorrienteRepository:
     return CierreCuentaCorrienteRepository()
 
@@ -237,6 +243,15 @@ def alertas_creadas(alerta_repo):
 def limpiar_datos_de_test(mysql_connection):
     def _borrar():
         with transaction() as cursor:
+            # outbox_eventos no tiene FK (payload genérico por entidad), pero
+            # igual se limpia primero: la subquery necesita que cliente/envio
+            # todavía existan para poder encontrar sus eventos.
+            cursor.execute(
+                "DELETE FROM outbox_eventos WHERE "
+                "(entidad = 'cliente' AND id_entidad IN (SELECT id_cliente FROM cliente WHERE razon_social LIKE %s)) OR "
+                "(entidad = 'envio' AND id_entidad IN (SELECT id_envio FROM envio WHERE origen LIKE %s))",
+                (f"{TEST_PREFIX}%", f"{TEST_PREFIX}%"),
+            )
             # Orden por dependencias de FK (hijos antes que padres).
             cursor.execute("DELETE FROM reporte WHERE tipo LIKE %s", (f"{TEST_PREFIX}%",))
             cursor.execute("DELETE FROM regla WHERE nombre LIKE %s", (f"{TEST_PREFIX}%",))

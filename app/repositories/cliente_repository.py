@@ -1,4 +1,7 @@
-"""Acceso a datos de Cliente contra MySQL (SQL parametrizado, sin ORM)."""
+"""Acceso a datos de Cliente contra MySQL (SQL parametrizado, sin ORM). El
+alta y la modificación encolan un evento en outbox_eventos, en la misma
+transacción, para que Neo4j reciba su proyección liviana de :Cliente vía el
+Worker de Outbox (ver app/services/outbox_worker_service.py)."""
 import logging
 
 from mysql.connector import Error as MySQLError
@@ -6,6 +9,7 @@ from mysql.connector import Error as MySQLError
 from app.core.exceptions import DuplicateError, RepositoryError
 from app.db.mysql import get_cursor, transaction
 from app.domain.cliente import Cliente
+from app.repositories.outbox_repository import OutboxRepository
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +49,12 @@ class ClienteRepository:
                         cliente.estado,
                     ),
                 )
-                return cursor.lastrowid
+                id_cliente = cursor.lastrowid
+                OutboxRepository().encolar(
+                    cursor, "cliente", id_cliente, "creado",
+                    {"id_cliente": id_cliente, "razon_social": cliente.razon_social},
+                )
+                return id_cliente
         except MySQLError as e:
             if e.errno == _MYSQL_DUPLICATE_ENTRY:
                 logger.warning("Alta de cliente duplicada: %s", e)
@@ -130,6 +139,10 @@ class ClienteRepository:
                         cliente.estado,
                         cliente.id_cliente,
                     ),
+                )
+                OutboxRepository().encolar(
+                    cursor, "cliente", cliente.id_cliente, "actualizado",
+                    {"id_cliente": cliente.id_cliente, "razon_social": cliente.razon_social},
                 )
         except MySQLError as e:
             if e.errno == _MYSQL_DUPLICATE_ENTRY:

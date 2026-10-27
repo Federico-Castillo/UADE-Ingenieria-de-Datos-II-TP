@@ -1,4 +1,8 @@
-"""Acceso a datos de Envio contra MySQL (SQL parametrizado, sin ORM)."""
+"""Acceso a datos de Envio contra MySQL (SQL parametrizado, sin ORM). Alta,
+modificación y baja encolan un evento en outbox_eventos, en la misma
+transacción, para que Neo4j reciba su proyección liviana de :Envio (y, en la
+baja, elimine el nodo) vía el Worker de Outbox — ver
+app/services/outbox_worker_service.py."""
 import logging
 
 from mysql.connector import Error as MySQLError
@@ -6,6 +10,7 @@ from mysql.connector import Error as MySQLError
 from app.core.exceptions import RepositoryError
 from app.db.mysql import get_cursor, transaction
 from app.domain.envio import Envio
+from app.repositories.outbox_repository import OutboxRepository
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +38,15 @@ class EnvioRepository:
                     """,
                     (envio.id_cliente, envio.origen, envio.destino, envio.estado, envio.prioridad),
                 )
-                return cursor.lastrowid
+                id_envio = cursor.lastrowid
+                OutboxRepository().encolar(
+                    cursor, "envio", id_envio, "creado",
+                    {
+                        "id_envio": id_envio, "id_cliente": envio.id_cliente,
+                        "estado": envio.estado, "prioridad": envio.prioridad,
+                    },
+                )
+                return id_envio
         except MySQLError as e:
             logger.exception("Error creando envío")
             raise RepositoryError(f"No se pudo crear el envío: {e}") from e
@@ -79,16 +92,27 @@ class EnvioRepository:
                     """,
                     (envio.id_cliente, envio.origen, envio.destino, envio.estado, envio.prioridad, envio.id_envio),
                 )
+                OutboxRepository().encolar(
+                    cursor, "envio", envio.id_envio, "actualizado",
+                    {
+                        "id_envio": envio.id_envio, "id_cliente": envio.id_cliente,
+                        "estado": envio.estado, "prioridad": envio.prioridad,
+                    },
+                )
         except MySQLError as e:
             logger.exception("Error actualizando envío")
             raise RepositoryError(f"No se pudo actualizar el envío: {e}") from e
 
     def eliminar(self, id_envio: int) -> None:
         """Baja física: no hay otra entidad implementada hasta ahora que
-        referencie un Envío con ON DELETE RESTRICT."""
+        referencie un Envío con ON DELETE RESTRICT. Encola 'eliminado' para
+        que el Worker de Outbox borre también la proyección en Neo4j — si no,
+        quedaría la "referencia huérfana" que describe el desafío de
+        complejidad adicional (punto 5)."""
         try:
             with transaction() as cursor:
                 cursor.execute("DELETE FROM envio WHERE id_envio = %s", (id_envio,))
+                OutboxRepository().encolar(cursor, "envio", id_envio, "eliminado", {"id_envio": id_envio})
         except MySQLError as e:
             logger.exception("Error eliminando envío")
             raise RepositoryError(f"No se pudo eliminar el envío: {e}") from e

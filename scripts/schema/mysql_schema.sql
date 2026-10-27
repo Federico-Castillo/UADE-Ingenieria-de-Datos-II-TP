@@ -270,6 +270,26 @@ CREATE TABLE cierre_cuenta_corriente_pagable (
   )
 );
 
+-- Patrón Outbox transaccional (ver desafío de complejidad adicional, punto
+-- 4): ClienteRepository/EnvioRepository insertan acá, en la MISMA
+-- transacción que el INSERT/UPDATE que origina el evento, para que la
+-- propagación a Neo4j nunca se pierda por una caída justo después del
+-- commit. El worker (worker/outbox_worker.py) lee los 'pendiente', propaga,
+-- y marca 'procesado'; si falla repetidas veces pasa a 'dead_letter' en vez
+-- de reintentar para siempre (ver punto 6: reintentos + dead-letter queue).
+CREATE TABLE outbox_eventos (
+  id_evento CHAR(36) PRIMARY KEY,
+  entidad VARCHAR(50) NOT NULL,
+  id_entidad INT NOT NULL,
+  tipo_evento VARCHAR(50) NOT NULL,
+  payload JSON NOT NULL,
+  estado ENUM('pendiente','procesado','dead_letter') NOT NULL DEFAULT 'pendiente',
+  intentos INT NOT NULL DEFAULT 0,
+  fecha_creacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  fecha_procesado DATETIME NULL
+);
+CREATE INDEX idx_outbox_estado ON outbox_eventos (estado);
+
 -- Índices adicionales documentados en modelado.md (más allá de los UNIQUE KEY
 -- y FK ya declarados inline, que MySQL indexa automáticamente).
 CREATE INDEX idx_envio_cliente_estado ON envio (id_cliente, estado);

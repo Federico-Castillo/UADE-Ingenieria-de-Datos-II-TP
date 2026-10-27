@@ -52,9 +52,11 @@ Reportes, Eventos Logísticos/Incidentes/Mensajería/Grupos de Trabajo/
 Predicciones de Riesgo (MongoDB), Tramos/Rutas (Neo4j, con las 2 "Consultas
 Avanzadas" de la consigna: ruta completa de un envío y red de relaciones
 cliente-operador, más costos por tipo de transporte), Monitoreo IoT
-(Cassandra), y Reportes Operativos y Analíticos (agregaciones cross-engine:
+(Cassandra), Reportes Operativos y Analíticos (agregaciones cross-engine:
 envíos por país/estado/cliente, tiempos de entrega, incidentes promedio,
-análisis predictivo de riesgos) — el alta de factura/pago
+análisis predictivo de riesgos, rankings de rutas/clientes), y el Worker de
+Outbox (sincronización MySQL -> Neo4j del desafío de complejidad adicional)
+— el alta de factura/pago
 actualiza el saldo de forma transaccional, y los Services de Mongo/Neo4j/
 Cassandra validan sus referencias a MySQL en la capa de aplicación (no hay FK
 nativas cross-engine). **Los 5 motores del TP ya tienen código real.** El
@@ -150,6 +152,27 @@ del envío) con más incidentes, y clientes por volumen transportado (suma de
 `Contenedor.capacidad`, agregación 100% MySQL vía `envio_contenedor`).
 Separado a propósito de "Gestión de Reportes", que solo registra metadata
 del pedido (`Reporte`/`ReporteService`) sin calcular nada.
+
+## Worker de Outbox
+
+Patrón Outbox transaccional + worker asíncrono (desafío de complejidad
+adicional, punto 4): `ClienteRepository`/`EnvioRepository` encolan un evento
+en `outbox_eventos`, en la MISMA transacción que el alta/modificación/baja,
+para que la propagación a Neo4j nunca se pierda por una caída justo después
+del commit. El worker lee los eventos `pendiente` y proyecta
+`:Cliente`/`:Envio` vía `MERGE` (idempotente — reintentar nunca duplica
+nodos) o, en una baja de Envío, hace `DETACH DELETE` del nodo (evita la
+"referencia huérfana" que describe el propio desafío). Tras varios fallos
+(default 5) el evento pasa a `dead_letter` en vez de reintentar para
+siempre.
+
+```bash
+python worker/outbox_worker.py                # loop cada 5s hasta Ctrl+C
+python worker/outbox_worker.py --once          # un solo ciclo y termina
+```
+
+También hay un menú "Worker de Outbox" en `main.py` para inspeccionar
+pendientes/dead-letter y correr un ciclo manual sin salir de la app.
 
 ## Logs
 
