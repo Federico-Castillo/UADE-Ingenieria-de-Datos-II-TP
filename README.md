@@ -57,8 +57,12 @@ Cassandra validan sus referencias a MySQL en la capa de aplicación (no hay FK
 nativas cross-engine). **Los 5 motores del TP ya tienen código real.** El
 registro de una lectura de sensor dispara automáticamente el pipeline
 Cassandra → MongoDB → Redis del desafío de complejidad adicional: si viola
-una Regla activa, se crea un Incidente y una Alerta vinculados. Solo
-Inteligencia Analítica queda como "próximamente" en el menú.
+una Regla activa, se crea un Incidente y una Alerta vinculados. Dos procesos
+periódicos de la consigna ya implementados: Cierre Mensual de Cuentas
+Corrientes (snapshot idempotente del saldo por período, clientes y
+proveedores/operadores) y Detección de Sensores Inactivos (compara la última
+lectura en Cassandra contra un umbral de horas, marca el sensor y genera una
+Alerta). Solo Inteligencia Analítica queda como "próximamente" en el menú.
 
 > **Nota Windows:** `getpass.getpass()` (usado para la contraseña en el alta de
 > Usuario) lee directo de la consola, no de stdin redirigido — no se puede
@@ -87,6 +91,24 @@ Requieren `docker-compose up -d` y el esquema de MySQL ya creado:
 python -m pytest -m integration -v   # tests de integración (contra las DB reales)
 python -m pytest -v                  # + los unitarios (ej. lógica del simulador, sin DB)
 ```
+
+## Procesos periódicos
+
+No hay scheduler automático en el alcance del TP: se corren a demanda desde
+sus menús en `main.py`.
+
+- **Cierre Mensual de Cuentas Corrientes:** registra, para el período
+  indicado (`'YYYY-MM'`, default el mes actual), un snapshot del saldo vivo
+  de cada cuenta (`cuenta_corriente` y `cuenta_corriente_pagable`) en
+  `cierre_cuenta_corriente`/`cierre_cuenta_corriente_pagable`. No resetea el
+  saldo real — es historial de resúmenes mensuales. Reejecutar el cierre de
+  un período ya cerrado actualiza el snapshot (upsert por `(id_cliente,
+  periodo)` o `(id_proveedor/id_operador_logistico, periodo)`) en vez de
+  duplicarlo.
+- **Detección de Sensores Inactivos:** compara la última lectura de cada
+  sensor activo en Cassandra contra un umbral de horas (default 24hs); el
+  que no tiene lecturas recientes (o nunca tuvo) se marca `estado='inactivo'`
+  en MySQL y genera una `Alerta` en Redis (`tipo='sensor_inactivo'`).
 
 ## Logs
 

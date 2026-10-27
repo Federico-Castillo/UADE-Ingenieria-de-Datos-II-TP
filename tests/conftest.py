@@ -8,6 +8,8 @@ from mysql.connector import Error as MySQLError
 
 from app.db.mysql import get_cursor, transaction
 from app.repositories.alerta_repository import AlertaRepository
+from app.repositories.cierre_cuenta_corriente_pagable_repository import CierreCuentaCorrientePagableRepository
+from app.repositories.cierre_cuenta_corriente_repository import CierreCuentaCorrienteRepository
 from app.repositories.cliente_repository import ClienteRepository
 from app.repositories.contenedor_repository import ContenedorRepository
 from app.repositories.cuenta_corriente_pagable_repository import CuentaCorrientePagableRepository
@@ -159,6 +161,16 @@ def cuenta_corriente_pagable_repo(mysql_connection) -> CuentaCorrientePagableRep
 
 
 @pytest.fixture
+def cierre_cuenta_corriente_repo(mysql_connection) -> CierreCuentaCorrienteRepository:
+    return CierreCuentaCorrienteRepository()
+
+
+@pytest.fixture
+def cierre_cuenta_corriente_pagable_repo(mysql_connection) -> CierreCuentaCorrientePagableRepository:
+    return CierreCuentaCorrientePagableRepository()
+
+
+@pytest.fixture
 def reporte_repo(mysql_connection) -> ReporteRepository:
     return ReporteRepository()
 
@@ -253,6 +265,11 @@ def limpiar_datos_de_test(mysql_connection):
                 (f"{TEST_PREFIX}%",),
             )
             cursor.execute(
+                "DELETE FROM cierre_cuenta_corriente WHERE id_cliente IN "
+                "(SELECT id_cliente FROM cliente WHERE razon_social LIKE %s)",
+                (f"{TEST_PREFIX}%",),
+            )
+            cursor.execute(
                 "DELETE FROM cuenta_corriente WHERE id_cliente IN "
                 "(SELECT id_cliente FROM cliente WHERE razon_social LIKE %s)",
                 (f"{TEST_PREFIX}%",),
@@ -274,6 +291,12 @@ def limpiar_datos_de_test(mysql_connection):
             )
             cursor.execute(
                 "DELETE FROM cuenta_corriente_pagable WHERE "
+                "id_proveedor IN (SELECT id_proveedor FROM proveedor WHERE razon_social LIKE %s) OR "
+                "id_operador_logistico IN (SELECT id_operador_logistico FROM operador_logistico WHERE razon_social LIKE %s)",
+                (f"{TEST_PREFIX}%", f"{TEST_PREFIX}%"),
+            )
+            cursor.execute(
+                "DELETE FROM cierre_cuenta_corriente_pagable WHERE "
                 "id_proveedor IN (SELECT id_proveedor FROM proveedor WHERE razon_social LIKE %s) OR "
                 "id_operador_logistico IN (SELECT id_operador_logistico FROM operador_logistico WHERE razon_social LIKE %s)",
                 (f"{TEST_PREFIX}%", f"{TEST_PREFIX}%"),

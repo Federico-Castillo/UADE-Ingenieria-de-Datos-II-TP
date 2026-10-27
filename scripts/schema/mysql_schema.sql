@@ -227,6 +227,49 @@ CREATE TABLE cuenta_corriente_pagable (
   )
 );
 
+-- Snapshots del proceso periódico "cierre mensual de cuentas corrientes":
+-- cada fila es el saldo de una cuenta al momento del cierre de un período
+-- (formato 'YYYY-MM'). No reemplaza ni resetea cuenta_corriente/
+-- cuenta_corriente_pagable (el saldo real sigue siendo el acumulado vivo,
+-- como en cualquier cuenta corriente comercial) — es el historial de
+-- resúmenes mensuales. Re-ejecutar el cierre del mismo período actualiza el
+-- snapshot (UNIQUE KEY + ON DUPLICATE KEY UPDATE en el repository), para que
+-- correrlo dos veces por error no duplique filas.
+CREATE TABLE cierre_cuenta_corriente (
+  id_cierre INT AUTO_INCREMENT PRIMARY KEY,
+  id_cliente INT NOT NULL,
+  periodo CHAR(7) NOT NULL,
+  saldo_al_cierre DECIMAL(12,2) NOT NULL,
+  fecha_cierre DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_cierre_cliente_periodo (id_cliente, periodo),
+  CONSTRAINT fk_cierre_cliente FOREIGN KEY (id_cliente) REFERENCES cliente(id_cliente)
+    ON UPDATE CASCADE ON DELETE RESTRICT
+);
+
+-- Mismo criterio que cierre_cuenta_corriente, lado pagable (proveedores y
+-- operadores logísticos, mutuamente excluyentes, mismo patrón que
+-- factura_recibida/cuenta_corriente_pagable). ON UPDATE RESTRICT en ambas FK
+-- porque conviven con el CHECK de exclusión mutua (MySQL 8 no permite CASCADE
+-- + CHECK sobre la misma columna, error 3823 — mismo fix ya aplicado arriba).
+CREATE TABLE cierre_cuenta_corriente_pagable (
+  id_cierre INT AUTO_INCREMENT PRIMARY KEY,
+  id_proveedor INT NULL,
+  id_operador_logistico INT NULL,
+  periodo CHAR(7) NOT NULL,
+  saldo_al_cierre DECIMAL(12,2) NOT NULL,
+  fecha_cierre DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_cierrepagable_proveedor_periodo (id_proveedor, periodo),
+  UNIQUE KEY uq_cierrepagable_operador_periodo (id_operador_logistico, periodo),
+  CONSTRAINT fk_cierrepagable_proveedor FOREIGN KEY (id_proveedor) REFERENCES proveedor(id_proveedor)
+    ON UPDATE RESTRICT ON DELETE RESTRICT,
+  CONSTRAINT fk_cierrepagable_operador FOREIGN KEY (id_operador_logistico) REFERENCES operador_logistico(id_operador_logistico)
+    ON UPDATE RESTRICT ON DELETE RESTRICT,
+  CONSTRAINT chk_cierrepagable_titular CHECK (
+    (id_proveedor IS NOT NULL AND id_operador_logistico IS NULL) OR
+    (id_proveedor IS NULL AND id_operador_logistico IS NOT NULL)
+  )
+);
+
 -- Índices adicionales documentados en modelado.md (más allá de los UNIQUE KEY
 -- y FK ya declarados inline, que MySQL indexa automáticamente).
 CREATE INDEX idx_envio_cliente_estado ON envio (id_cliente, estado);
@@ -237,3 +280,5 @@ CREATE INDEX idx_facturarecibida_operador_estado ON factura_recibida (id_operado
 CREATE INDEX idx_sensor_contenedor_estado ON sensor_iot (id_contenedor, estado);
 CREATE INDEX idx_regla_tipo_estado ON regla (tipo_sensor, estado);
 CREATE INDEX idx_enviocontenedor_contenedor ON envio_contenedor (id_contenedor);
+CREATE INDEX idx_cierre_periodo ON cierre_cuenta_corriente (periodo);
+CREATE INDEX idx_cierrepagable_periodo ON cierre_cuenta_corriente_pagable (periodo);

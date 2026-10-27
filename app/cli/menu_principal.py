@@ -1,6 +1,7 @@
 """Menú principal de la aplicación. Las entidades aún no implementadas quedan
 como placeholder para no tener que tocar esta estructura en sesiones futuras."""
 from app.cli.alerta_menu import menu_alerta
+from app.cli.cierre_cuenta_corriente_menu import menu_cierre_cuenta_corriente
 from app.cli.cliente_menu import menu_cliente
 from app.cli.contenedor_menu import menu_contenedor
 from app.cli.cuenta_corriente_menu import menu_cuenta_corriente
@@ -22,6 +23,7 @@ from app.cli.regla_menu import menu_regla
 from app.cli.reporte_menu import menu_reporte
 from app.cli.rol_menu import menu_rol
 from app.cli.sensor_iot_menu import menu_sensor_iot
+from app.cli.sensor_inactivo_menu import menu_sensor_inactivo
 from app.cli.sesion_menu import menu_sesion
 from app.cli.tramo_menu import menu_tramo
 from app.cli.usuario_menu import menu_usuario
@@ -65,6 +67,8 @@ def menu_principal() -> None:
         ("Predicciones de Riesgo (Mongo)", menu_prediccion_riesgo),
         ("Tramos y Rutas (Neo4j)", menu_tramo),
         ("Monitoreo IoT: Lecturas de Sensor (Cassandra)", menu_lectura_sensor),
+        ("Cierre Mensual de Cuentas Corrientes (proceso periódico)", menu_cierre_cuenta_corriente),
+        ("Detección de Sensores Inactivos (proceso periódico)", menu_sensor_inactivo),
     ]
     opciones += [(nombre, lambda n=nombre: _mostrar_proximamente(n)) for nombre in _PROXIMAMENTE]
 
