@@ -143,11 +143,13 @@ envíos por país/estado/cliente, envíos demorados, incidentes abiertos,
 tiempos de envío por cliente (mín/máx/promedio) y tiempo promedio de entrega
 global (calculado contra el `EventoLogistico` con `tipo_evento='entregado'`
 de cada envío), incidentes promedio por país/estado/cliente, análisis
-predictivo de riesgos (umbral de probabilidad de demora), y costos por tipo
+predictivo de riesgos (umbral de probabilidad de demora), costos por tipo
 de transporte (`Tramo.costo` en Neo4j, agregación nativa `AVG`/`SUM`
-agrupada por `medio_transporte`). Separado a propósito de "Gestión de
-Reportes", que solo registra metadata del pedido (`Reporte`/`ReporteService`)
-sin calcular nada.
+agrupada por `medio_transporte`), y 2 rankings: rutas (par origen/destino
+del envío) con más incidentes, y clientes por volumen transportado (suma de
+`Contenedor.capacidad`, agregación 100% MySQL vía `envio_contenedor`).
+Separado a propósito de "Gestión de Reportes", que solo registra metadata
+del pedido (`Reporte`/`ReporteService`) sin calcular nada.
 
 ## Logs
 

@@ -3,12 +3,14 @@ from datetime import timedelta
 import pytest
 
 from app.domain.cliente import Cliente
+from app.domain.contenedor import Contenedor
 from app.domain.envio import Envio
 from app.domain.evento_logistico import EventoLogistico
 from app.domain.incidente import Incidente
 from app.domain.prediccion_riesgo import PrediccionRiesgo
 from app.repositories.prediccion_riesgo_repository import PrediccionRiesgoRepository
 from app.services.evento_logistico_service import EventoLogisticoService
+from app.services.envio_contenedor_service import EnvioContenedorService
 from app.services.incidente_service import IncidenteService
 from app.services.reporte_operativo_service import ReporteOperativoService
 
@@ -122,3 +124,42 @@ def test_analisis_predictivo_detecta_riesgo_alto(service, envio_repo, id_cliente
     resultado = service.analisis_predictivo_riesgos()
 
     assert any(r["id_envio"] == id_envio for r in resultado["envios_riesgo_alto"])
+
+
+def test_ranking_rutas_por_incidentes(service, envio_repo, id_cliente_valido):
+    id_envio = envio_repo.crear(
+        Envio(id_cliente=id_cliente_valido, origen="TEST_RutaOrigen", destino="TEST_RutaDestino")
+    )
+    IncidenteService().registrar(Incidente(id_envio=id_envio, tipo="TEST_incidente_ruta", severidad="alta"))
+
+    fila = next(
+        f for f in service.ranking_rutas_por_incidentes(top_n=1000)
+        if f["origen"] == "TEST_RutaOrigen" and f["destino"] == "TEST_RutaDestino"
+    )
+
+    assert fila["cantidad_incidentes"] == 1
+    assert fila["cantidad_envios"] == 1
+
+
+def test_ranking_rutas_por_incidentes_excluye_rutas_sin_incidentes(service, envio_repo, id_cliente_valido):
+    envio_repo.crear(Envio(id_cliente=id_cliente_valido, origen="TEST_RutaSana1", destino="TEST_RutaSana2"))
+
+    filas = service.ranking_rutas_por_incidentes(top_n=1000)
+
+    assert not any(f["origen"] == "TEST_RutaSana1" and f["destino"] == "TEST_RutaSana2" for f in filas)
+
+
+def test_ranking_clientes_por_volumen(service, envio_repo, contenedor_repo, id_cliente_valido):
+    id_envio = envio_repo.crear(Envio(id_cliente=id_cliente_valido, origen="TEST_A", destino="TEST_B"))
+    id_contenedor = contenedor_repo.crear(
+        Contenedor(codigo_internacional="TEST_VOL01", tipo="dry", capacidad=15.5)
+    )
+    EnvioContenedorService().asignar_contenedor(id_envio, id_contenedor)
+
+    fila = next(
+        f for f in service.ranking_clientes_por_volumen(top_n=1000) if f["id_cliente"] == id_cliente_valido
+    )
+
+    assert fila["volumen_total"] == pytest.approx(15.5)
+    assert fila["cantidad_contenedores"] == 1
+    assert fila["razon_social"] == "TEST_ClienteReporteOp"

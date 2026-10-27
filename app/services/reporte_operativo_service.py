@@ -13,6 +13,7 @@ from app.core.fechas import sin_tz
 from app.domain.envio import Envio
 from app.domain.incidente import Incidente
 from app.repositories.cliente_repository import ClienteRepository
+from app.repositories.envio_contenedor_repository import EnvioContenedorRepository
 from app.repositories.envio_repository import EnvioRepository
 from app.repositories.evento_logistico_repository import EventoLogisticoRepository
 from app.repositories.incidente_repository import IncidenteRepository
@@ -33,12 +34,14 @@ class ReporteOperativoService:
         incidente_repo: IncidenteRepository | None = None,
         evento_repo: EventoLogisticoRepository | None = None,
         prediccion_repo: PrediccionRiesgoRepository | None = None,
+        envio_contenedor_repo: EnvioContenedorRepository | None = None,
     ):
         self._envio_repo = envio_repo or EnvioRepository()
         self._cliente_repo = cliente_repo or ClienteRepository()
         self._incidente_repo = incidente_repo or IncidenteRepository()
         self._evento_repo = evento_repo or EventoLogisticoRepository()
         self._prediccion_repo = prediccion_repo or PrediccionRiesgoRepository()
+        self._envio_contenedor_repo = envio_contenedor_repo or EnvioContenedorRepository()
 
     def _clientes_por_id(self) -> dict[int, object]:
         return {c.id_cliente: c for c in self._cliente_repo.listar()}
@@ -204,3 +207,50 @@ class ReporteOperativoService:
                 for p in riesgo_alto
             ],
         }
+
+    # --- Rankings ---
+
+    def ranking_rutas_por_incidentes(self, top_n: int = 10) -> list[dict]:
+        """"Ruta" = el par (origen, destino) declarado en el envío (no el
+        tramo: un envío puede tener varios tramos y un incidente no apunta a
+        uno en particular, solo al envío). Solo incluye rutas con al menos
+        un incidente — es un ranking de rutas problemáticas, no un listado
+        completo."""
+        incidentes_por_envio = self._incidentes_por_envio()
+        envios_por_ruta = defaultdict(int)
+        incidentes_por_ruta = defaultdict(int)
+        for envio in self._envio_repo.listar():
+            ruta = (envio.origen, envio.destino)
+            envios_por_ruta[ruta] += 1
+            incidentes_por_ruta[ruta] += incidentes_por_envio.get(envio.id_envio, 0)
+
+        filas = [
+            {
+                "origen": origen,
+                "destino": destino,
+                "cantidad_incidentes": incidentes_por_ruta[(origen, destino)],
+                "cantidad_envios": envios_por_ruta[(origen, destino)],
+            }
+            for origen, destino in envios_por_ruta
+            if incidentes_por_ruta[(origen, destino)] > 0
+        ]
+        filas.sort(key=lambda f: f["cantidad_incidentes"], reverse=True)
+        return filas[:top_n]
+
+    def ranking_clientes_por_volumen(self, top_n: int = 10) -> list[dict]:
+        """"Volumen transportado" = suma de Contenedor.capacidad de todos los
+        contenedores que el cliente movió (vía envio_contenedor), no la
+        cantidad de envíos — eso ya lo cubre envios_por_cliente()."""
+        clientes_por_id = self._clientes_por_id()
+        filas = self._envio_contenedor_repo.volumen_transportado_por_cliente()
+        resultado = [
+            {
+                "id_cliente": f["id_cliente"],
+                "razon_social": clientes_por_id[f["id_cliente"]].razon_social
+                if f["id_cliente"] in clientes_por_id else "(desconocido)",
+                "volumen_total": f["volumen_total"],
+                "cantidad_contenedores": f["cantidad_contenedores"],
+            }
+            for f in filas
+        ]
+        return resultado[:top_n]

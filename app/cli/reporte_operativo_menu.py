@@ -115,6 +115,30 @@ def _analisis_predictivo(service: ReporteOperativoService) -> None:
         print("  Ningún envío supera el umbral de riesgo alto.")
 
 
+def _ranking_rutas_por_incidentes(service: ReporteOperativoService) -> None:
+    print("\n-- Ranking de Rutas con Más Incidentes --")
+    filas = service.ranking_rutas_por_incidentes()
+    if not filas:
+        print("  No hay rutas con incidentes registrados todavía.")
+    for pos, f in enumerate(filas, start=1):
+        print(
+            f"  {pos}) {f['origen']} -> {f['destino']}: {f['cantidad_incidentes']} incidente(s) "
+            f"en {f['cantidad_envios']} envío(s)"
+        )
+
+
+def _ranking_clientes_por_volumen(service: ReporteOperativoService) -> None:
+    print("\n-- Ranking de Clientes por Volumen Transportado --")
+    filas = service.ranking_clientes_por_volumen()
+    if not filas:
+        print("  No hay contenedores asignados a envíos todavía.")
+    for pos, f in enumerate(filas, start=1):
+        print(
+            f"  {pos}) [{f['id_cliente']}] {f['razon_social']}: {f['volumen_total']:.2f} "
+            f"({f['cantidad_contenedores']} contenedor(es))"
+        )
+
+
 def _costos_por_tipo_transporte(_: ReporteOperativoService) -> None:
     print("\n-- Costos por Tipo de Transporte --")
     filas = TramoService().costos_por_medio_transporte()
@@ -140,6 +164,8 @@ _ACCIONES = {
     "10": ("Incidentes promedio por cliente", _incidentes_promedio_por_cliente),
     "11": ("Análisis predictivo de riesgos (atrasos)", _analisis_predictivo),
     "12": ("Costos por tipo de transporte", _costos_por_tipo_transporte),
+    "13": ("Ranking: rutas con más incidentes", _ranking_rutas_por_incidentes),
+    "14": ("Ranking: clientes por volumen transportado", _ranking_clientes_por_volumen),
 }
 
 

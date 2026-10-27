@@ -71,6 +71,38 @@ class EnvioContenedorRepository:
             logger.exception("Error listando contenedores de un envío")
             raise RepositoryError(f"No se pudo listar los contenedores del envío: {e}") from e
 
+    def volumen_transportado_por_cliente(self) -> list[dict]:
+        """Usado por el ranking "clientes por volumen transportado": suma la
+        capacidad de todos los contenedores que cada cliente movió alguna vez
+        (vía cualquiera de sus envíos), de mayor a menor. Es una agregación
+        100% MySQL (envio_contenedor + envio + contenedor), no necesita
+        resolver nada cross-engine."""
+        try:
+            with get_cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT e.id_cliente AS id_cliente,
+                           SUM(c.capacidad) AS volumen_total,
+                           COUNT(*) AS cantidad_contenedores
+                    FROM envio_contenedor ec
+                    JOIN envio e ON e.id_envio = ec.id_envio
+                    JOIN contenedor c ON c.id_contenedor = ec.id_contenedor
+                    GROUP BY e.id_cliente
+                    ORDER BY volumen_total DESC
+                    """
+                )
+                return [
+                    {
+                        "id_cliente": row["id_cliente"],
+                        "volumen_total": float(row["volumen_total"]),
+                        "cantidad_contenedores": row["cantidad_contenedores"],
+                    }
+                    for row in cursor.fetchall()
+                ]
+        except MySQLError as e:
+            logger.exception("Error calculando el volumen transportado por cliente")
+            raise RepositoryError(f"No se pudo calcular el volumen transportado por cliente: {e}") from e
+
     def envio_actual_de_contenedor(self, id_contenedor: int) -> int | None:
         """Devuelve el id_envio asignado más recientemente a ese contenedor
         (un contenedor puede reutilizarse en envíos distintos con el tiempo)."""
