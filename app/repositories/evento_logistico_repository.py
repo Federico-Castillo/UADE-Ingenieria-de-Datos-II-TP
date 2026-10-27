@@ -73,3 +73,14 @@ class EventoLogisticoRepository:
         except PyMongoError as e:
             logger.exception("Error listando eventos logísticos")
             raise RepositoryError(f"No se pudo listar los eventos logísticos: {e}") from e
+
+    def listar_por_tipo_evento(self, tipo_evento: str) -> list[EventoLogistico]:
+        """Usado por los reportes de tiempos de entrega: busca, en todos los
+        envíos, el evento que marca la entrega (convención 'entregado', ver
+        evento_logistico_menu.py)."""
+        try:
+            docs = self._collection.find({"tipo_evento": tipo_evento}).sort("fecha_hora", 1)
+            return [_doc_to_evento(d) for d in docs]
+        except PyMongoError as e:
+            logger.exception("Error listando eventos logísticos por tipo")
+            raise RepositoryError(f"No se pudo listar los eventos logísticos por tipo: {e}") from e

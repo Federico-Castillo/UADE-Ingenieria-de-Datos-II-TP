@@ -91,3 +91,40 @@ def test_registrar_tramo_rechaza_envio_inexistente(tramo_repo):
 
     with pytest.raises(ValidationError):
         service.registrar_tramo(_tramo(999999999, 1, 1, "A", "B"))
+
+
+def test_tramo_con_costo_aparece_en_costos_por_medio_transporte(tramo_repo, contexto_envio):
+    id_envio, id_vehiculo, id_operador = contexto_envio
+    service = TramoService(repository=tramo_repo)
+    tramo = _tramo(id_envio, id_vehiculo, id_operador, "CostoA", "CostoB")
+    tramo.costo = 1500.0
+
+    antes = {f["medio_transporte"]: f for f in service.costos_por_medio_transporte()}
+    service.registrar_tramo(tramo)
+    despues = {f["medio_transporte"]: f for f in service.costos_por_medio_transporte()}
+
+    cantidad_antes = antes.get("terrestre", {}).get("cantidad_tramos", 0)
+    total_antes = antes.get("terrestre", {}).get("costo_total", 0.0)
+    assert despues["terrestre"]["cantidad_tramos"] == cantidad_antes + 1
+    assert despues["terrestre"]["costo_total"] == pytest.approx(total_antes + 1500.0)
+
+
+def test_tramo_sin_costo_no_se_cuenta_en_costos_por_medio_transporte(tramo_repo, contexto_envio):
+    id_envio, id_vehiculo, id_operador = contexto_envio
+    service = TramoService(repository=tramo_repo)
+    antes = {f["medio_transporte"]: f["cantidad_tramos"] for f in service.costos_por_medio_transporte()}
+
+    service.registrar_tramo(_tramo(id_envio, id_vehiculo, id_operador, "SinCostoA", "SinCostoB"))
+
+    despues = {f["medio_transporte"]: f["cantidad_tramos"] for f in service.costos_por_medio_transporte()}
+    assert despues.get("terrestre", 0) == antes.get("terrestre", 0)
+
+
+def test_costo_negativo_lanza_validation_error(tramo_repo, contexto_envio):
+    id_envio, id_vehiculo, id_operador = contexto_envio
+    service = TramoService(repository=tramo_repo)
+    tramo = _tramo(id_envio, id_vehiculo, id_operador, "Neg1", "Neg2")
+    tramo.costo = -5.0
+
+    with pytest.raises(ValidationError):
+        service.registrar_tramo(tramo)

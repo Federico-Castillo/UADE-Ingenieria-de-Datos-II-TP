@@ -22,5 +22,6 @@ class Tramo:
     destino_lon: float | None = None
     fecha_salida: datetime | None = None
     fecha_llegada_estimada: datetime | None = None
+    costo: float | None = None
     orden: int | None = None
     id_tramo: str | None = None

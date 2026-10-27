@@ -49,6 +49,14 @@ def leer_entero_opcional(etiqueta: str) -> int | None:
     return int(valor) if valor.isdigit() else None
 
 
+def leer_decimal_opcional(etiqueta: str) -> float | None:
+    valor = input(f"{etiqueta} (opcional): ").strip().replace(",", ".")
+    try:
+        return float(valor) if valor else None
+    except ValueError:
+        return None
+
+
 def confirmar(mensaje: str) -> bool:
     valor = input(f"{mensaje} (s/n): ").strip().lower()
     return valor == "s"

@@ -68,3 +68,14 @@ class PrediccionRiesgoRepository:
         except PyMongoError as e:
             logger.exception("Error listando predicciones de un envío")
             raise RepositoryError(f"No se pudo listar las predicciones del envío: {e}") from e
+
+    def listar_todas(self) -> list[PrediccionRiesgo]:
+        """Usado por el reporte de análisis predictivo: todas las
+        predicciones, más recientes primero (mismo desempate que
+        ultima_por_envio/listar_por_envio)."""
+        try:
+            docs = self._collection.find().sort([("fecha_calculo", -1), ("_id", -1)])
+            return [_doc_to_prediccion(d) for d in docs]
+        except PyMongoError as e:
+            logger.exception("Error listando todas las predicciones")
+            raise RepositoryError(f"No se pudieron listar las predicciones: {e}") from e

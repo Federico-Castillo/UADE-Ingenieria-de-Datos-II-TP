@@ -29,6 +29,8 @@ class TramoService:
             raise ValidationError(f"Medio de transporte inválido. Opciones: {', '.join(sorted(_MEDIOS_VALIDOS))}.")
         if not tramo.origen_nombre or not tramo.destino_nombre:
             raise ValidationError("Origen y destino no pueden estar vacíos.")
+        if tramo.costo is not None and tramo.costo < 0:
+            raise ValidationError("El costo no puede ser negativo.")
 
         envio = self._envio_repo.obtener_por_id(tramo.id_envio)
         if envio is None:
@@ -61,3 +63,6 @@ class TramoService:
 
     def red_relaciones(self) -> list[dict]:
         return self._repo.red_relaciones()
+
+    def costos_por_medio_transporte(self) -> list[dict]:
+        return self._repo.costos_por_medio_transporte()

@@ -21,6 +21,7 @@ from app.cli.prediccion_riesgo_menu import menu_prediccion_riesgo
 from app.cli.proveedor_menu import menu_proveedor
 from app.cli.regla_menu import menu_regla
 from app.cli.reporte_menu import menu_reporte
+from app.cli.reporte_operativo_menu import menu_reporte_operativo
 from app.cli.rol_menu import menu_rol
 from app.cli.sensor_iot_menu import menu_sensor_iot
 from app.cli.sensor_inactivo_menu import menu_sensor_inactivo
@@ -60,6 +61,7 @@ def menu_principal() -> None:
         ("Gestión de Pagos Emitidos (proveedores/operadores)", menu_pago_emitido),
         ("Cuentas Corrientes Pagables (proveedores/operadores)", menu_cuenta_corriente_pagable),
         ("Gestión de Reportes", menu_reporte),
+        ("Reportes Operativos y Analíticos (agregaciones)", menu_reporte_operativo),
         ("Eventos Logísticos (Mongo)", menu_evento_logistico),
         ("Incidentes (Mongo)", menu_incidente),
         ("Mensajería (Mongo)", menu_mensaje),

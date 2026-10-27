@@ -318,6 +318,10 @@ def limpiar_mongo_de_test():
     def _borrar():
         db = get_db()
         db["eventos_logisticos"].delete_many({"tipo_evento": {"$regex": f"^{TEST_PREFIX}"}})
+        # Los eventos de entrega usados por los reportes de tiempos de envío
+        # necesitan tipo_evento='entregado' (valor fijo de la convención, no
+        # puede llevar el prefijo TEST_), así que se marcan con 'descripcion'.
+        db["eventos_logisticos"].delete_many({"descripcion": {"$regex": f"^{TEST_PREFIX}"}})
         db["incidentes"].delete_many({"tipo": {"$regex": f"^{TEST_PREFIX}"}})
         db["mensajes"].delete_many({"contenido": {"$regex": f"^{TEST_PREFIX}"}})
         db["grupos_trabajo"].delete_many({"nombre": {"$regex": f"^{TEST_PREFIX}"}})

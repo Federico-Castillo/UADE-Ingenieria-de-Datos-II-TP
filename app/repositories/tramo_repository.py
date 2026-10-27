@@ -29,7 +29,8 @@ CREATE (t:Tramo {
     id_tramo: $id_tramo,
     medio_transporte: $medio_transporte,
     fecha_salida: $fecha_salida,
-    fecha_llegada_estimada: $fecha_llegada_estimada
+    fecha_llegada_estimada: $fecha_llegada_estimada,
+    costo: $costo
 })
 MERGE (e)-[:INCLUYE {orden: siguiente_orden}]->(t)
 MERGE (origen:Ubicacion {nombre: $origen_nombre})
@@ -68,6 +69,16 @@ RETURN DISTINCT c.id_cliente AS id_cliente, c.razon_social AS cliente,
 ORDER BY cliente
 """
 
+# Reporte analítico "costos por tipo de transporte": agregación nativa de
+# Neo4j agrupando por medio_transporte, ignorando los tramos sin costo
+# cargado (campo opcional).
+_COSTOS_POR_MEDIO = """
+MATCH (t:Tramo) WHERE t.costo IS NOT NULL
+RETURN t.medio_transporte AS medio_transporte, count(t) AS cantidad_tramos,
+       avg(t.costo) AS costo_promedio, sum(t.costo) AS costo_total
+ORDER BY medio_transporte
+"""
+
 
 class TramoRepository:
     def crear(
@@ -95,6 +106,7 @@ class TramoRepository:
                     medio_transporte=tramo.medio_transporte,
                     fecha_salida=tramo.fecha_salida,
                     fecha_llegada_estimada=tramo.fecha_llegada_estimada,
+                    costo=tramo.costo,
                     origen_nombre=tramo.origen_nombre,
                     origen_pais=tramo.origen_pais,
                     origen_lat=tramo.origen_lat,
@@ -134,3 +146,12 @@ class TramoRepository:
         except Neo4jError as e:
             logger.exception("Error obteniendo la red de relaciones")
             raise RepositoryError(f"No se pudo obtener la red de relaciones: {e}") from e
+
+    def costos_por_medio_transporte(self) -> list[dict]:
+        try:
+            with session() as sess:
+                result = sess.run(_COSTOS_POR_MEDIO)
+                return [dict(r) for r in result]
+        except Neo4jError as e:
+            logger.exception("Error calculando costos por medio de transporte")
+            raise RepositoryError(f"No se pudo calcular los costos por medio de transporte: {e}") from e

@@ -3,7 +3,14 @@ explícitamente por la consigna: ruta completa de un envío y red de
 relaciones entre clientes, operadores y envíos."""
 from datetime import date
 
-from app.cli.io_utils import leer_decimal, leer_entero, leer_no_vacio, leer_opcion, leer_opcional, pausar
+from app.cli.io_utils import (
+    leer_decimal_opcional,
+    leer_entero,
+    leer_no_vacio,
+    leer_opcion,
+    leer_opcional,
+    pausar,
+)
 from app.core.exceptions import AppError
 from app.domain.tramo import Tramo
 from app.services.tramo_service import TramoService
@@ -53,6 +60,7 @@ def _registrar(service: TramoService) -> None:
 
     fecha_salida = _leer_fecha_opcional("Fecha de salida")
     fecha_llegada = _leer_fecha_opcional("Fecha de llegada estimada")
+    costo = leer_decimal_opcional("Costo del tramo")
 
     tramo = Tramo(
         id_envio=id_envio,
@@ -69,6 +77,7 @@ def _registrar(service: TramoService) -> None:
         destino_lon=destino_lon,
         fecha_salida=fecha_salida,
         fecha_llegada_estimada=fecha_llegada,
+        costo=costo,
     )
     creado = service.registrar_tramo(tramo)
     print(f"Tramo creado con id {creado.id_tramo} (orden {creado.orden} del envío).")

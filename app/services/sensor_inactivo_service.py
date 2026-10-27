@@ -10,6 +10,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 from app.core.exceptions import AppError
+from app.core.fechas import sin_tz
 from app.domain.sensor_iot import SensorIoT
 from app.repositories.alerta_repository import AlertaRepository
 from app.repositories.lectura_sensor_repository import LecturaSensorRepository
@@ -20,13 +21,6 @@ logger = logging.getLogger(__name__)
 UMBRAL_HORAS_DEFAULT = 24.0
 _ID_REGLA_SIN_REGLA = 0
 _TIPO_ALERTA = "sensor_inactivo"
-
-
-def _sin_tz(momento: datetime) -> datetime:
-    """Normaliza a naive: el driver de Cassandra puede devolver datetime naive
-    (interpretado como UTC) o aware según la config, así que la comparación
-    contra el umbral tiene que ser agnóstica a eso."""
-    return momento.replace(tzinfo=None) if momento.tzinfo else momento
 
 
 class SensorInactivoService:
@@ -41,13 +35,13 @@ class SensorInactivoService:
         self._alerta_repo = alerta_repo or AlertaRepository()
 
     def detectar(self, umbral_horas: float = UMBRAL_HORAS_DEFAULT) -> list[SensorIoT]:
-        limite = _sin_tz(datetime.now(timezone.utc) - timedelta(hours=umbral_horas))
+        limite = sin_tz(datetime.now(timezone.utc) - timedelta(hours=umbral_horas))
         inactivos = []
         for sensor in self._sensor_repo.listar():
             if sensor.estado != "activo":
                 continue
             ultima = self._lectura_repo.ultima_por_sensor(sensor.id_sensor)
-            if ultima is None or _sin_tz(ultima.fecha_hora) < limite:
+            if ultima is None or sin_tz(ultima.fecha_hora) < limite:
                 inactivos.append(sensor)
         return inactivos
 

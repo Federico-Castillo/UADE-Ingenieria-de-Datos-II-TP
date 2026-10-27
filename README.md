@@ -51,7 +51,10 @@ Recibidas/Pagos Emitidos/Cuentas Corrientes Pagables (proveedores/operadores),
 Reportes, Eventos Logísticos/Incidentes/Mensajería/Grupos de Trabajo/
 Predicciones de Riesgo (MongoDB), Tramos/Rutas (Neo4j, con las 2 "Consultas
 Avanzadas" de la consigna: ruta completa de un envío y red de relaciones
-cliente-operador), y Monitoreo IoT (Cassandra) — el alta de factura/pago
+cliente-operador, más costos por tipo de transporte), Monitoreo IoT
+(Cassandra), y Reportes Operativos y Analíticos (agregaciones cross-engine:
+envíos por país/estado/cliente, tiempos de entrega, incidentes promedio,
+análisis predictivo de riesgos) — el alta de factura/pago
 actualiza el saldo de forma transaccional, y los Services de Mongo/Neo4j/
 Cassandra validan sus referencias a MySQL en la capa de aplicación (no hay FK
 nativas cross-engine). **Los 5 motores del TP ya tienen código real.** El
@@ -109,6 +112,21 @@ sus menús en `main.py`.
   sensor activo en Cassandra contra un umbral de horas (default 24hs); el
   que no tiene lecturas recientes (o nunca tuvo) se marca `estado='inactivo'`
   en MySQL y genera una `Alerta` en Redis (`tipo='sensor_inactivo'`).
+
+## Reportes operativos y analíticos
+
+Menú "Reportes Operativos y Analíticos" (`app/services/reporte_operativo_service.py`):
+agregaciones de solo lectura, resueltas a nivel aplicación uniendo MySQL
+(Envio/Cliente) con MongoDB (Incidente/EventoLogistico/PrediccionRiesgo) —
+envíos por país/estado/cliente, envíos demorados, incidentes abiertos,
+tiempos de envío por cliente (mín/máx/promedio) y tiempo promedio de entrega
+global (calculado contra el `EventoLogistico` con `tipo_evento='entregado'`
+de cada envío), incidentes promedio por país/estado/cliente, análisis
+predictivo de riesgos (umbral de probabilidad de demora), y costos por tipo
+de transporte (`Tramo.costo` en Neo4j, agregación nativa `AVG`/`SUM`
+agrupada por `medio_transporte`). Separado a propósito de "Gestión de
+Reportes", que solo registra metadata del pedido (`Reporte`/`ReporteService`)
+sin calcular nada.
 
 ## Logs
 
