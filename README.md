@@ -44,8 +44,9 @@ python main.py
 ```
 
 Implementados de punta a punta: Clientes, Usuarios, Roles, Sesiones (Redis),
-Proveedores y Operadores Logísticos. El resto de las opciones del menú
-principal están reservadas como "próximamente".
+Proveedores, Operadores Logísticos, Contenedores, Sensores IoT, Vehículos,
+Envíos, Reglas y Alertas (Redis). El resto de las opciones del menú principal
+están reservadas como "próximamente".
 
 > **Nota Windows:** `getpass.getpass()` (usado para la contraseña en el alta de
 > Usuario) lee directo de la consola, no de stdin redirigido — no se puede

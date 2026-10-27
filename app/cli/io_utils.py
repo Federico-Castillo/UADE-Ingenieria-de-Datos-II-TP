@@ -35,6 +35,20 @@ def leer_entero(etiqueta: str) -> int:
         print("  Ingresá un número entero válido.")
 
 
+def leer_decimal(etiqueta: str) -> float:
+    while True:
+        valor = input(f"{etiqueta}: ").strip().replace(",", ".")
+        try:
+            return float(valor)
+        except ValueError:
+            print("  Ingresá un número válido.")
+
+
+def leer_entero_opcional(etiqueta: str) -> int | None:
+    valor = input(f"{etiqueta} (opcional): ").strip()
+    return int(valor) if valor.isdigit() else None
+
+
 def confirmar(mensaje: str) -> bool:
     valor = input(f"{mensaje} (s/n): ").strip().lower()
     return valor == "s"
