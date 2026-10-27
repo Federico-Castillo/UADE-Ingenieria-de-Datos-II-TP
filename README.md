@@ -45,10 +45,11 @@ python main.py
 
 Implementados de punta a punta: Clientes, Usuarios, Roles, Sesiones (Redis),
 Proveedores, Operadores Logísticos, Contenedores, Sensores IoT, Vehículos,
-Envíos, Reglas, Alertas (Redis), Facturas, Pagos y Cuentas Corrientes
-(lado cliente — el alta de Factura/Pago actualiza el saldo de forma
-transaccional). El resto de las opciones del menú principal están reservadas
-como "próximamente".
+Envíos, Reglas, Alertas (Redis), Facturas/Pagos/Cuentas Corrientes (clientes)
+y Facturas Recibidas/Pagos Emitidos/Cuentas Corrientes Pagables (proveedores/
+operadores) — el alta de factura/pago actualiza el saldo correspondiente de
+forma transaccional en ambos circuitos. El resto de las opciones del menú
+principal están reservadas como "próximamente".
 
 > **Nota Windows:** `getpass.getpass()` (usado para la contraseña en el alta de
 > Usuario) lee directo de la consola, no de stdin redirigido — no se puede

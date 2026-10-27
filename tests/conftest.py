@@ -10,9 +10,12 @@ from app.db.mysql import get_cursor, transaction
 from app.repositories.alerta_repository import AlertaRepository
 from app.repositories.cliente_repository import ClienteRepository
 from app.repositories.contenedor_repository import ContenedorRepository
+from app.repositories.cuenta_corriente_pagable_repository import CuentaCorrientePagableRepository
 from app.repositories.cuenta_corriente_repository import CuentaCorrienteRepository
 from app.repositories.envio_repository import EnvioRepository
+from app.repositories.factura_recibida_repository import FacturaRecibidaRepository
 from app.repositories.factura_repository import FacturaRepository
+from app.repositories.pago_emitido_repository import PagoEmitidoRepository
 from app.repositories.pago_repository import PagoRepository
 from app.repositories.operador_logistico_repository import OperadorLogisticoRepository
 from app.repositories.proveedor_repository import ProveedorRepository
@@ -106,6 +109,21 @@ def cuenta_corriente_repo(mysql_connection) -> CuentaCorrienteRepository:
 
 
 @pytest.fixture
+def factura_recibida_repo(mysql_connection) -> FacturaRecibidaRepository:
+    return FacturaRecibidaRepository()
+
+
+@pytest.fixture
+def pago_emitido_repo(mysql_connection) -> PagoEmitidoRepository:
+    return PagoEmitidoRepository()
+
+
+@pytest.fixture
+def cuenta_corriente_pagable_repo(mysql_connection) -> CuentaCorrientePagableRepository:
+    return CuentaCorrientePagableRepository()
+
+
+@pytest.fixture
 def sesion_repo() -> SesionRepository:
     return SesionRepository()
 
@@ -164,6 +182,25 @@ def limpiar_datos_de_test(mysql_connection):
             )
             cursor.execute("DELETE FROM cliente WHERE razon_social LIKE %s", (f"{TEST_PREFIX}%",))
             cursor.execute("DELETE FROM rol WHERE descripcion LIKE %s", (f"{TEST_PREFIX}%",))
+            cursor.execute(
+                "DELETE FROM pago_emitido WHERE id_factura_recibida IN "
+                "(SELECT id_factura_recibida FROM factura_recibida WHERE "
+                "id_proveedor IN (SELECT id_proveedor FROM proveedor WHERE razon_social LIKE %s) OR "
+                "id_operador_logistico IN (SELECT id_operador_logistico FROM operador_logistico WHERE razon_social LIKE %s))",
+                (f"{TEST_PREFIX}%", f"{TEST_PREFIX}%"),
+            )
+            cursor.execute(
+                "DELETE FROM factura_recibida WHERE "
+                "id_proveedor IN (SELECT id_proveedor FROM proveedor WHERE razon_social LIKE %s) OR "
+                "id_operador_logistico IN (SELECT id_operador_logistico FROM operador_logistico WHERE razon_social LIKE %s)",
+                (f"{TEST_PREFIX}%", f"{TEST_PREFIX}%"),
+            )
+            cursor.execute(
+                "DELETE FROM cuenta_corriente_pagable WHERE "
+                "id_proveedor IN (SELECT id_proveedor FROM proveedor WHERE razon_social LIKE %s) OR "
+                "id_operador_logistico IN (SELECT id_operador_logistico FROM operador_logistico WHERE razon_social LIKE %s)",
+                (f"{TEST_PREFIX}%", f"{TEST_PREFIX}%"),
+            )
             cursor.execute("DELETE FROM proveedor WHERE razon_social LIKE %s", (f"{TEST_PREFIX}%",))
             cursor.execute(
                 "DELETE FROM operador_logistico WHERE razon_social LIKE %s", (f"{TEST_PREFIX}%",)

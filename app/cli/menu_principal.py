@@ -4,9 +4,12 @@ from app.cli.alerta_menu import menu_alerta
 from app.cli.cliente_menu import menu_cliente
 from app.cli.contenedor_menu import menu_contenedor
 from app.cli.cuenta_corriente_menu import menu_cuenta_corriente
+from app.cli.cuenta_corriente_pagable_menu import menu_cuenta_corriente_pagable
 from app.cli.envio_menu import menu_envio
 from app.cli.factura_menu import menu_factura
+from app.cli.factura_recibida_menu import menu_factura_recibida
 from app.cli.operador_logistico_menu import menu_operador_logistico
+from app.cli.pago_emitido_menu import menu_pago_emitido
 from app.cli.pago_menu import menu_pago
 from app.cli.proveedor_menu import menu_proveedor
 from app.cli.regla_menu import menu_regla
@@ -17,7 +20,6 @@ from app.cli.usuario_menu import menu_usuario
 from app.cli.vehiculo_menu import menu_vehiculo
 
 _PROXIMAMENTE = [
-    "Cuenta Corriente y Facturación (proveedores/operadores)",
     "Monitoreo IoT (lecturas en Cassandra)",
     "Trazabilidad de envíos (eventos en Mongo, ruta en Neo4j)",
     "Mensajería",
@@ -48,6 +50,9 @@ def menu_principal() -> None:
         ("Gestión de Facturas (clientes)", menu_factura),
         ("Gestión de Pagos (clientes)", menu_pago),
         ("Cuentas Corrientes (clientes)", menu_cuenta_corriente),
+        ("Gestión de Facturas Recibidas (proveedores/operadores)", menu_factura_recibida),
+        ("Gestión de Pagos Emitidos (proveedores/operadores)", menu_pago_emitido),
+        ("Cuentas Corrientes Pagables (proveedores/operadores)", menu_cuenta_corriente_pagable),
     ]
     opciones += [(nombre, lambda n=nombre: _mostrar_proximamente(n)) for nombre in _PROXIMAMENTE]
 
