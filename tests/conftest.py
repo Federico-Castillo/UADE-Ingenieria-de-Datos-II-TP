@@ -29,9 +29,11 @@ from app.repositories.reporte_repository import ReporteRepository
 from app.repositories.rol_repository import RolRepository
 from app.repositories.sensor_iot_repository import SensorIoTRepository
 from app.repositories.sesion_repository import SesionRepository
+from app.repositories.tramo_repository import TramoRepository
 from app.repositories.usuario_repository import UsuarioRepository
 from app.repositories.vehiculo_repository import VehiculoRepository
 from app.db.mongo import get_db
+from app.db.neo4j_driver import session as neo4j_session
 
 TEST_PREFIX = "TEST_"
 
@@ -161,6 +163,11 @@ def prediccion_riesgo_repo() -> PrediccionRiesgoRepository:
 
 
 @pytest.fixture
+def tramo_repo() -> TramoRepository:
+    return TramoRepository()
+
+
+@pytest.fixture
 def sesion_repo() -> SesionRepository:
     return SesionRepository()
 
@@ -259,6 +266,37 @@ def limpiar_mongo_de_test():
         db["incidentes"].delete_many({"tipo": {"$regex": f"^{TEST_PREFIX}"}})
         db["mensajes"].delete_many({"contenido": {"$regex": f"^{TEST_PREFIX}"}})
         db["grupos_trabajo"].delete_many({"nombre": {"$regex": f"^{TEST_PREFIX}"}})
+
+    _borrar()
+    yield
+    _borrar()
+
+
+@pytest.fixture(autouse=True)
+def limpiar_neo4j_de_test():
+    def _borrar():
+        with neo4j_session() as sess:
+            sess.run(
+                """
+                MATCH (c:Cliente) WHERE c.razon_social STARTS WITH $prefix
+                OPTIONAL MATCH (c)-[:SOLICITA]->(e:Envio)
+                OPTIONAL MATCH (e)-[:INCLUYE]->(t:Tramo)
+                OPTIONAL MATCH (t)-[:ORIGEN]->(o:Ubicacion)
+                OPTIONAL MATCH (t)-[:DESTINO]->(d:Ubicacion)
+                DETACH DELETE c, e, t, o, d
+                """,
+                prefix=TEST_PREFIX,
+            )
+            sess.run(
+                "MATCH (v:Vehiculo) WHERE v.identificacion STARTS WITH $prefix DETACH DELETE v",
+                prefix=TEST_PREFIX,
+            )
+            sess.run(
+                "MATCH (o:Operador) WHERE o.nombre STARTS WITH $prefix DETACH DELETE o", prefix=TEST_PREFIX
+            )
+            sess.run(
+                "MATCH (u:Ubicacion) WHERE u.nombre STARTS WITH $prefix DETACH DELETE u", prefix=TEST_PREFIX
+            )
 
     _borrar()
     yield

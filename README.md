@@ -47,12 +47,15 @@ Implementados de punta a punta: Clientes, Usuarios, Roles, Sesiones (Redis),
 Proveedores, Operadores Logísticos, Contenedores, Sensores IoT, Vehículos,
 Envíos, Reglas, Alertas (Redis), Facturas/Pagos/Cuentas Corrientes (clientes),
 Facturas Recibidas/Pagos Emitidos/Cuentas Corrientes Pagables (proveedores/
-operadores), Reportes, y Eventos Logísticos/Incidentes/Mensajería/Grupos de
-Trabajo/Predicciones de Riesgo (MongoDB) — el alta de factura/pago actualiza
-el saldo correspondiente de forma transaccional, y los Services de Mongo
-validan sus referencias a MySQL en la capa de aplicación (no hay FK nativas
-cross-engine). El resto de las opciones del menú principal (Neo4j, Cassandra,
-Inteligencia Analítica) están reservadas como "próximamente".
+operadores), Reportes, Eventos Logísticos/Incidentes/Mensajería/Grupos de
+Trabajo/Predicciones de Riesgo (MongoDB), y Tramos/Rutas (Neo4j, con las 2
+"Consultas Avanzadas" de la consigna: ruta completa de un envío y red de
+relaciones cliente-operador) — el alta de factura/pago actualiza el saldo
+correspondiente de forma transaccional, y los Services de Mongo/Neo4j validan
+sus referencias a MySQL en la capa de aplicación (no hay FK nativas
+cross-engine). Con esto los 5 motores del TP ya tienen código real. Solo
+Cassandra (Monitoreo IoT) e Inteligencia Analítica quedan como
+"próximamente" en el menú.
 
 > **Nota Windows:** `getpass.getpass()` (usado para la contraseña en el alta de
 > Usuario) lee directo de la consola, no de stdin redirigido — no se puede

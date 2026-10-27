@@ -48,8 +48,12 @@ class PrediccionRiesgoRepository:
             raise RepositoryError(f"No se pudo crear la predicción: {e}") from e
 
     def ultima_por_envio(self, id_envio: int) -> PrediccionRiesgo | None:
+        # Desempate por _id (monótono con la inserción) por si dos predicciones
+        # se calculan en el mismo milisegundo y fecha_calculo queda empatada.
         try:
-            doc = self._collection.find_one({"id_envio": id_envio}, sort=[("fecha_calculo", -1)])
+            doc = self._collection.find_one(
+                {"id_envio": id_envio}, sort=[("fecha_calculo", -1), ("_id", -1)]
+            )
             return _doc_to_prediccion(doc) if doc else None
         except PyMongoError as e:
             logger.exception("Error obteniendo última predicción de un envío")
@@ -57,7 +61,9 @@ class PrediccionRiesgoRepository:
 
     def listar_por_envio(self, id_envio: int) -> list[PrediccionRiesgo]:
         try:
-            docs = self._collection.find({"id_envio": id_envio}).sort("fecha_calculo", -1)
+            docs = self._collection.find({"id_envio": id_envio}).sort(
+                [("fecha_calculo", -1), ("_id", -1)]
+            )
             return [_doc_to_prediccion(d) for d in docs]
         except PyMongoError as e:
             logger.exception("Error listando predicciones de un envío")

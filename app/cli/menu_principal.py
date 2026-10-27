@@ -22,12 +22,12 @@ from app.cli.reporte_menu import menu_reporte
 from app.cli.rol_menu import menu_rol
 from app.cli.sensor_iot_menu import menu_sensor_iot
 from app.cli.sesion_menu import menu_sesion
+from app.cli.tramo_menu import menu_tramo
 from app.cli.usuario_menu import menu_usuario
 from app.cli.vehiculo_menu import menu_vehiculo
 
 _PROXIMAMENTE = [
     "Monitoreo IoT (lecturas en Cassandra)",
-    "Trazabilidad de recorrido (ruta en Neo4j)",
     "Inteligencia Analítica (rankings, scikit-learn)",
 ]
 
@@ -63,6 +63,7 @@ def menu_principal() -> None:
         ("Mensajería (Mongo)", menu_mensaje),
         ("Grupos de Trabajo (Mongo)", menu_grupo_trabajo),
         ("Predicciones de Riesgo (Mongo)", menu_prediccion_riesgo),
+        ("Tramos y Rutas (Neo4j)", menu_tramo),
     ]
     opciones += [(nombre, lambda n=nombre: _mostrar_proximamente(n)) for nombre in _PROXIMAMENTE]
 
