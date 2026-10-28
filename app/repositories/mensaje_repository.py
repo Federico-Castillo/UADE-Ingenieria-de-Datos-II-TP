@@ -42,7 +42,9 @@ class MensajeRepository:
                 "fecha_hora": mensaje.fecha_hora or datetime.now(timezone.utc),
             }
             result = self._collection.insert_one(doc)
-            return str(result.inserted_id)
+            id_mensaje = str(result.inserted_id)
+            logger.info("Mensaje creado id=%s id_remitente=%s tipo=%s", id_mensaje, mensaje.id_remitente, mensaje.tipo)
+            return id_mensaje
         except PyMongoError as e:
             logger.exception("Error creando mensaje")
             raise RepositoryError(f"No se pudo crear el mensaje: {e}") from e

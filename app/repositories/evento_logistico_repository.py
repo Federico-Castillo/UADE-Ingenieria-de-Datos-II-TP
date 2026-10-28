@@ -43,7 +43,9 @@ class EventoLogisticoRepository:
             if evento.ubicacion:
                 doc["ubicacion"] = evento.ubicacion
             result = self._collection.insert_one(doc)
-            return str(result.inserted_id)
+            id_evento = str(result.inserted_id)
+            logger.info("Evento logístico creado id=%s id_envio=%s tipo_evento=%s", id_evento, evento.id_envio, evento.tipo_evento)
+            return id_evento
         except PyMongoError as e:
             logger.exception("Error creando evento logístico")
             raise RepositoryError(f"No se pudo crear el evento logístico: {e}") from e

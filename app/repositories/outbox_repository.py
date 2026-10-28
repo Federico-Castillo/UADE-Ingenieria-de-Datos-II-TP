@@ -47,6 +47,7 @@ class OutboxRepository:
             """,
             (id_evento, entidad, id_entidad, tipo_evento, json.dumps(payload)),
         )
+        logger.info("Evento de outbox encolado id=%s entidad=%s id_entidad=%s tipo_evento=%s", id_evento, entidad, id_entidad, tipo_evento)
         return id_evento
 
     def listar_pendientes(self, limite: int = 50) -> list[OutboxEvento]:
@@ -78,6 +79,7 @@ class OutboxRepository:
                     "WHERE id_evento = %s",
                     (id_evento,),
                 )
+            logger.info("Evento de outbox procesado id=%s", id_evento)
         except MySQLError as e:
             logger.exception("Error marcando evento del outbox como procesado")
             raise RepositoryError(f"No se pudo marcar el evento como procesado: {e}") from e
@@ -100,6 +102,7 @@ class OutboxRepository:
                     """,
                     (max_intentos, id_evento),
                 )
+            logger.info("Fallo de evento de outbox registrado id=%s", id_evento)
         except MySQLError as e:
             logger.exception("Error registrando el fallo de un evento del outbox")
             raise RepositoryError(f"No se pudo registrar el fallo del evento: {e}") from e
@@ -115,7 +118,10 @@ class OutboxRepository:
                     "WHERE id_evento = %s AND estado = 'dead_letter'",
                     (id_evento,),
                 )
-                return cursor.rowcount > 0
+                reintentado = cursor.rowcount > 0
+                if reintentado:
+                    logger.info("Evento de outbox reintentado id=%s", id_evento)
+                return reintentado
         except MySQLError as e:
             logger.exception("Error reintentando un evento del outbox")
             raise RepositoryError(f"No se pudo reintentar el evento: {e}") from e

@@ -43,6 +43,10 @@ class CierreCuentaCorrientePagableRepository:
                     """,
                     (id_proveedor, id_operador_logistico, periodo, saldo),
                 )
+            logger.info(
+                "Cierre de cuenta corriente pagable registrado id_proveedor=%s id_operador_logistico=%s periodo=%s",
+                id_proveedor, id_operador_logistico, periodo,
+            )
         except MySQLError as e:
             logger.exception("Error registrando cierre de cuenta corriente pagable")
             raise RepositoryError(f"No se pudo registrar el cierre: {e}") from e

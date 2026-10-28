@@ -34,7 +34,9 @@ class OperadorLogisticoRepository:
                     """,
                     (operador.razon_social, operador.cuit, operador.email, operador.telefono, operador.estado),
                 )
-                return cursor.lastrowid
+                id_operador_logistico = cursor.lastrowid
+                logger.info("Operador logístico creado id=%s", id_operador_logistico)
+                return id_operador_logistico
         except MySQLError as e:
             if e.errno == _MYSQL_DUPLICATE_ENTRY:
                 logger.warning("Alta de operador logístico duplicada: %s", e)
@@ -122,6 +124,7 @@ class OperadorLogisticoRepository:
                         operador.id_operador_logistico,
                     ),
                 )
+            logger.info("Operador logístico actualizado id=%s", operador.id_operador_logistico)
         except MySQLError as e:
             if e.errno == _MYSQL_DUPLICATE_ENTRY:
                 logger.warning("Actualización de operador logístico duplicada: %s", e)
@@ -140,6 +143,7 @@ class OperadorLogisticoRepository:
                     "UPDATE operador_logistico SET estado = 'inactivo' WHERE id_operador_logistico = %s",
                     (id_operador_logistico,),
                 )
+            logger.info("Operador logístico dado de baja id=%s", id_operador_logistico)
         except MySQLError as e:
             logger.exception("Error dando de baja operador logístico")
             raise RepositoryError(f"No se pudo dar de baja el operador logístico: {e}") from e

@@ -44,6 +44,7 @@ class FacturaRepository:
                     """,
                     (factura.id_cliente, factura.importe_total),
                 )
+                logger.info("Factura creada id=%s id_cliente=%s importe_total=%s", id_factura, factura.id_cliente, factura.importe_total)
                 return id_factura
         except MySQLError as e:
             logger.exception("Error creando factura")
@@ -83,6 +84,7 @@ class FacturaRepository:
         try:
             with transaction() as cursor:
                 cursor.execute("UPDATE factura SET estado = %s WHERE id_factura = %s", (estado, id_factura))
+            logger.info("Factura actualizada id=%s nuevo_estado=%s", id_factura, estado)
         except MySQLError as e:
             logger.exception("Error actualizando estado de factura")
             raise RepositoryError(f"No se pudo actualizar el estado de la factura: {e}") from e

@@ -30,7 +30,9 @@ class GrupoTrabajoRepository:
         try:
             doc = {"nombre": grupo.nombre, "integrantes": grupo.integrantes}
             result = self._collection.insert_one(doc)
-            return str(result.inserted_id)
+            id_grupo = str(result.inserted_id)
+            logger.info("Grupo de trabajo creado id=%s nombre=%s", id_grupo, grupo.nombre)
+            return id_grupo
         except PyMongoError as e:
             logger.exception("Error creando grupo de trabajo")
             raise RepositoryError(f"No se pudo crear el grupo de trabajo: {e}") from e
@@ -58,7 +60,10 @@ class GrupoTrabajoRepository:
             result = self._collection.update_one(
                 {"_id": ObjectId(id_grupo)}, {"$addToSet": {"integrantes": id_usuario}}
             )
-            return result.matched_count > 0
+            agregado = result.matched_count > 0
+            if agregado:
+                logger.info("Integrante agregado a grupo de trabajo id_grupo=%s id_usuario=%s", id_grupo, id_usuario)
+            return agregado
         except InvalidId:
             return False
         except PyMongoError as e:
@@ -70,7 +75,10 @@ class GrupoTrabajoRepository:
             result = self._collection.update_one(
                 {"_id": ObjectId(id_grupo)}, {"$pull": {"integrantes": id_usuario}}
             )
-            return result.matched_count > 0
+            quitado = result.matched_count > 0
+            if quitado:
+                logger.info("Integrante quitado de grupo de trabajo id_grupo=%s id_usuario=%s", id_grupo, id_usuario)
+            return quitado
         except InvalidId:
             return False
         except PyMongoError as e:
@@ -80,7 +88,10 @@ class GrupoTrabajoRepository:
     def eliminar(self, id_grupo: str) -> bool:
         try:
             result = self._collection.delete_one({"_id": ObjectId(id_grupo)})
-            return result.deleted_count > 0
+            eliminado = result.deleted_count > 0
+            if eliminado:
+                logger.info("Grupo de trabajo eliminado id=%s", id_grupo)
+            return eliminado
         except InvalidId:
             return False
         except PyMongoError as e:

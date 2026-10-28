@@ -47,7 +47,9 @@ class ReglaRepository:
                         regla.id_usuario_creador,
                     ),
                 )
-                return cursor.lastrowid
+                id_regla = cursor.lastrowid
+                logger.info("Regla creada id=%s", id_regla)
+                return id_regla
         except MySQLError as e:
             logger.exception("Error creando regla")
             raise RepositoryError(f"No se pudo crear la regla: {e}") from e
@@ -106,6 +108,7 @@ class ReglaRepository:
                         regla.id_regla,
                     ),
                 )
+            logger.info("Regla actualizada id=%s", regla.id_regla)
         except MySQLError as e:
             logger.exception("Error actualizando regla")
             raise RepositoryError(f"No se pudo actualizar la regla: {e}") from e
@@ -118,6 +121,7 @@ class ReglaRepository:
         try:
             with transaction() as cursor:
                 cursor.execute("DELETE FROM regla WHERE id_regla = %s", (id_regla,))
+            logger.info("Regla eliminada id=%s", id_regla)
         except MySQLError as e:
             logger.exception("Error eliminando regla")
             raise RepositoryError(f"No se pudo eliminar la regla: {e}") from e

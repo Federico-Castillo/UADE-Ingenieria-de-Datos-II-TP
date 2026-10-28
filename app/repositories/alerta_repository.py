@@ -55,6 +55,7 @@ class AlertaRepository:
             )
             self._client.expire(key, TTL_SECONDS)
             self._client.sadd(_ACTIVE_SET_KEY, id_alerta)
+            logger.info("Alerta creada id=%s id_sensor=%s id_regla=%s", id_alerta, id_sensor, id_regla)
             return Alerta(
                 id_alerta=id_alerta, id_sensor=id_sensor, id_regla=id_regla,
                 tipo=tipo, fecha=fecha, id_evento=id_evento,
@@ -95,6 +96,7 @@ class AlertaRepository:
                 return False
             self._client.delete(key)
             self._client.srem(_ACTIVE_SET_KEY, id_alerta)
+            logger.info("Alerta resuelta id=%s", id_alerta)
             return True
         except RedisError as e:
             logger.exception("Error resolviendo alerta")

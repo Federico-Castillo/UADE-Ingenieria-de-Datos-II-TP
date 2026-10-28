@@ -135,6 +135,7 @@ class TramoRepository:
                 record = result.single()
                 tramo.id_tramo = id_tramo
                 tramo.orden = record["orden"]
+                logger.info("Tramo creado id=%s id_envio=%s orden=%s", id_tramo, tramo.id_envio, tramo.orden)
                 return tramo
         except Neo4jError as e:
             logger.exception("Error creando tramo")

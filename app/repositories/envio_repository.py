@@ -46,6 +46,7 @@ class EnvioRepository:
                         "estado": envio.estado, "prioridad": envio.prioridad,
                     },
                 )
+                logger.info("Envío creado id=%s", id_envio)
                 return id_envio
         except MySQLError as e:
             logger.exception("Error creando envío")
@@ -99,6 +100,7 @@ class EnvioRepository:
                         "estado": envio.estado, "prioridad": envio.prioridad,
                     },
                 )
+            logger.info("Envío actualizado id=%s", envio.id_envio)
         except MySQLError as e:
             logger.exception("Error actualizando envío")
             raise RepositoryError(f"No se pudo actualizar el envío: {e}") from e
@@ -113,6 +115,7 @@ class EnvioRepository:
             with transaction() as cursor:
                 cursor.execute("DELETE FROM envio WHERE id_envio = %s", (id_envio,))
                 OutboxRepository().encolar(cursor, "envio", id_envio, "eliminado", {"id_envio": id_envio})
+            logger.info("Envío eliminado id=%s", id_envio)
         except MySQLError as e:
             logger.exception("Error eliminando envío")
             raise RepositoryError(f"No se pudo eliminar el envío: {e}") from e

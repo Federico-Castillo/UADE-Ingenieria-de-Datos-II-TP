@@ -34,7 +34,9 @@ class SensorIoTRepository:
                     """,
                     (sensor.id_contenedor, sensor.tipo, sensor.fabricante, sensor.fecha_instalacion, sensor.estado),
                 )
-                return cursor.lastrowid
+                id_sensor = cursor.lastrowid
+                logger.info("Sensor IoT creado id=%s id_contenedor=%s", id_sensor, sensor.id_contenedor)
+                return id_sensor
         except MySQLError as e:
             logger.exception("Error creando sensor IoT")
             raise RepositoryError(f"No se pudo crear el sensor: {e}") from e
@@ -87,6 +89,7 @@ class SensorIoTRepository:
                         sensor.id_sensor,
                     ),
                 )
+            logger.info("Sensor IoT actualizado id=%s", sensor.id_sensor)
         except MySQLError as e:
             logger.exception("Error actualizando sensor")
             raise RepositoryError(f"No se pudo actualizar el sensor: {e}") from e
@@ -97,6 +100,7 @@ class SensorIoTRepository:
         try:
             with transaction() as cursor:
                 cursor.execute("DELETE FROM sensor_iot WHERE id_sensor = %s", (id_sensor,))
+            logger.info("Sensor IoT eliminado id=%s", id_sensor)
         except MySQLError as e:
             if e.errno == _MYSQL_ROW_IS_REFERENCED:
                 logger.warning("Intento de borrar sensor en uso: %s", e)

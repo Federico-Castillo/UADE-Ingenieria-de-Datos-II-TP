@@ -45,7 +45,9 @@ class ProveedorRepository:
                         proveedor.estado,
                     ),
                 )
-                return cursor.lastrowid
+                id_proveedor = cursor.lastrowid
+                logger.info("Proveedor creado id=%s", id_proveedor)
+                return id_proveedor
         except MySQLError as e:
             if e.errno == _MYSQL_DUPLICATE_ENTRY:
                 logger.warning("Alta de proveedor duplicada: %s", e)
@@ -131,6 +133,7 @@ class ProveedorRepository:
                         proveedor.id_proveedor,
                     ),
                 )
+            logger.info("Proveedor actualizado id=%s", proveedor.id_proveedor)
         except MySQLError as e:
             if e.errno == _MYSQL_DUPLICATE_ENTRY:
                 logger.warning("Actualización de proveedor duplicada: %s", e)
@@ -149,6 +152,7 @@ class ProveedorRepository:
                     "UPDATE proveedor SET estado = 'inactivo' WHERE id_proveedor = %s",
                     (id_proveedor,),
                 )
+            logger.info("Proveedor dado de baja id=%s", id_proveedor)
         except MySQLError as e:
             logger.exception("Error dando de baja proveedor")
             raise RepositoryError(f"No se pudo dar de baja el proveedor: {e}") from e

@@ -33,7 +33,9 @@ class VehiculoRepository:
                     """,
                     (vehiculo.tipo, vehiculo.identificacion, vehiculo.empresa_operadora, vehiculo.estado),
                 )
-                return cursor.lastrowid
+                id_vehiculo = cursor.lastrowid
+                logger.info("Vehículo creado id=%s", id_vehiculo)
+                return id_vehiculo
         except MySQLError as e:
             if e.errno == _MYSQL_DUPLICATE_ENTRY:
                 logger.warning("Alta de vehículo duplicada: %s", e)
@@ -79,6 +81,7 @@ class VehiculoRepository:
                         vehiculo.id_vehiculo,
                     ),
                 )
+            logger.info("Vehículo actualizado id=%s", vehiculo.id_vehiculo)
         except MySQLError as e:
             if e.errno == _MYSQL_DUPLICATE_ENTRY:
                 logger.warning("Actualización de vehículo duplicada: %s", e)
@@ -94,6 +97,7 @@ class VehiculoRepository:
         try:
             with transaction() as cursor:
                 cursor.execute("DELETE FROM vehiculo WHERE id_vehiculo = %s", (id_vehiculo,))
+            logger.info("Vehículo eliminado id=%s", id_vehiculo)
         except MySQLError as e:
             logger.exception("Error eliminando vehículo")
             raise RepositoryError(f"No se pudo eliminar el vehículo: {e}") from e

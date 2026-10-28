@@ -26,7 +26,9 @@ class RolRepository:
                     "INSERT INTO rol (descripcion, nivel_permisos) VALUES (%s, %s)",
                     (rol.descripcion, rol.nivel_permisos),
                 )
-                return cursor.lastrowid
+                id_rol = cursor.lastrowid
+                logger.info("Rol creado id=%s", id_rol)
+                return id_rol
         except MySQLError as e:
             logger.exception("Error creando rol")
             raise RepositoryError(f"No se pudo crear el rol: {e}") from e
@@ -57,6 +59,7 @@ class RolRepository:
                     "UPDATE rol SET descripcion = %s, nivel_permisos = %s WHERE id_rol = %s",
                     (rol.descripcion, rol.nivel_permisos, rol.id_rol),
                 )
+            logger.info("Rol actualizado id=%s", rol.id_rol)
         except MySQLError as e:
             logger.exception("Error actualizando rol")
             raise RepositoryError(f"No se pudo actualizar el rol: {e}") from e
@@ -68,6 +71,7 @@ class RolRepository:
         try:
             with transaction() as cursor:
                 cursor.execute("DELETE FROM rol WHERE id_rol = %s", (id_rol,))
+            logger.info("Rol eliminado id=%s", id_rol)
         except MySQLError as e:
             if e.errno == 1451:  # ER_ROW_IS_REFERENCED_2 (violación de FK RESTRICT)
                 logger.warning("Intento de borrar rol en uso: %s", e)

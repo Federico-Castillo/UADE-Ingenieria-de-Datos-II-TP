@@ -4,10 +4,6 @@ Plataforma de gestión de logística internacional y monitoreo de cargas IoT, co
 persistencia políglota en 5 motores: MySQL (relacional), MongoDB (documental),
 Neo4j (grafos), Redis (clave-valor), Cassandra (tabular).
 
-El diseño completo (justificación de motores, modelado físico, desafío de
-complejidad adicional) está en `UADE-Ingenieria-de-Datos-II-TP-tools/1. Primera
-Entrega/`.
-
 ## Requisitos
 
 - Python 3.12+
@@ -97,12 +93,11 @@ así que se puede re-correr sin acumular duplicados.
 
 ## Simulador de sensores IoT
 
-No hay hardware real (decisión de alcance del TP). Este script inserta
-lecturas sintéticas en Cassandra para los sensores ya dados de alta (menú
-"Gestión de Sensores IoT"), con valores normales la mayor parte del tiempo y
-anomalías ocasionales que disparan el pipeline completo
-Cassandra → MongoDB → Redis (Incidente + Alerta) si hay una Regla activa para
-ese tipo de sensor:
+No hay hardware real. Este script inserta lecturas sintéticas en Cassandra 
+para los sensores ya dados de alta (menú"Gestión de Sensores IoT"), 
+con valores normales la mayor parte del tiempo yanomalías ocasionales 
+que disparan el pipeline completo Cassandra → MongoDB → Redis (Incidente + Alerta) 
+si hay una Regla activa para ese tipo de sensor:
 
 ```bash
 python scripts/simulador_iot.py                        # loop cada 10s hasta Ctrl+C
@@ -121,8 +116,7 @@ python -m pytest -v                  # + los unitarios (ej. lógica del simulado
 
 ## Procesos periódicos
 
-No hay scheduler automático en el alcance del TP: se corren a demanda desde
-sus menús en `main.py`.
+No hay scheduler automático: se corren a demanda desde sus menús en `main.py`.
 
 - **Cierre Mensual de Cuentas Corrientes:** registra, para el período
   indicado (`'YYYY-MM'`, default el mes actual), un snapshot del saldo vivo

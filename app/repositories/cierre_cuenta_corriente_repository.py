@@ -37,6 +37,7 @@ class CierreCuentaCorrienteRepository:
                     """,
                     (id_cliente, periodo, saldo),
                 )
+            logger.info("Cierre de cuenta corriente registrado id_cliente=%s periodo=%s", id_cliente, periodo)
         except MySQLError as e:
             logger.exception("Error registrando cierre de cuenta corriente")
             raise RepositoryError(f"No se pudo registrar el cierre: {e}") from e

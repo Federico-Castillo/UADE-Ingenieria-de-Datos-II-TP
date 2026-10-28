@@ -42,7 +42,12 @@ class PrediccionRiesgoRepository:
                 "fecha_calculo": prediccion.fecha_calculo or datetime.now(timezone.utc),
             }
             result = self._collection.insert_one(doc)
-            return str(result.inserted_id)
+            id_prediccion = str(result.inserted_id)
+            logger.info(
+                "Predicción de riesgo creada id=%s id_envio=%s probabilidad_demora=%s",
+                id_prediccion, prediccion.id_envio, prediccion.probabilidad_demora,
+            )
+            return id_prediccion
         except PyMongoError as e:
             logger.exception("Error creando predicción de riesgo")
             raise RepositoryError(f"No se pudo crear la predicción: {e}") from e

@@ -75,6 +75,10 @@ class PagoEmitidoRepository:
                     (nuevo_estado, pago.id_factura_recibida),
                 )
 
+                logger.info(
+                    "Pago emitido creado id=%s id_factura_recibida=%s monto=%s nuevo_estado_factura=%s",
+                    id_pago, pago.id_factura_recibida, pago.monto, nuevo_estado,
+                )
                 return id_pago
         except MySQLError as e:
             logger.exception("Error creando pago emitido")

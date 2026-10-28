@@ -46,7 +46,9 @@ class UsuarioRepository:
                         usuario.estado,
                     ),
                 )
-                return cursor.lastrowid
+                id_usuario = cursor.lastrowid
+                logger.info("Usuario creado id=%s", id_usuario)
+                return id_usuario
         except MySQLError as e:
             if e.errno == _MYSQL_DUPLICATE_ENTRY:
                 logger.warning("Alta de usuario duplicada: %s", e)
@@ -124,6 +126,7 @@ class UsuarioRepository:
                         usuario.id_usuario,
                     ),
                 )
+            logger.info("Usuario actualizado id=%s", usuario.id_usuario)
         except MySQLError as e:
             if e.errno == _MYSQL_DUPLICATE_ENTRY:
                 logger.warning("Actualización de usuario duplicada: %s", e)
@@ -139,6 +142,7 @@ class UsuarioRepository:
                     "UPDATE usuario SET estado = 'inactivo' WHERE id_usuario = %s",
                     (id_usuario,),
                 )
+            logger.info("Usuario dado de baja id=%s", id_usuario)
         except MySQLError as e:
             logger.exception("Error dando de baja usuario")
             raise RepositoryError(f"No se pudo dar de baja el usuario: {e}") from e

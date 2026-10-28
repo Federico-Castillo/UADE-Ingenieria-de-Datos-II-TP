@@ -33,6 +33,7 @@ class EnvioContenedorRepository:
                     "INSERT INTO envio_contenedor (id_envio, id_contenedor) VALUES (%s, %s)",
                     (id_envio, id_contenedor),
                 )
+            logger.info("Contenedor asignado id_envio=%s id_contenedor=%s", id_envio, id_contenedor)
         except MySQLError as e:
             if e.errno == _MYSQL_DUPLICATE_ENTRY:
                 logger.warning("Asignación de contenedor duplicada: %s", e)
@@ -49,7 +50,10 @@ class EnvioContenedorRepository:
                     "DELETE FROM envio_contenedor WHERE id_envio = %s AND id_contenedor = %s",
                     (id_envio, id_contenedor),
                 )
-                return cursor.rowcount > 0
+                quitado = cursor.rowcount > 0
+                if quitado:
+                    logger.info("Contenedor quitado id_envio=%s id_contenedor=%s", id_envio, id_contenedor)
+                return quitado
         except MySQLError as e:
             logger.exception("Error quitando contenedor de envío")
             raise RepositoryError(f"No se pudo quitar el contenedor del envío: {e}") from e

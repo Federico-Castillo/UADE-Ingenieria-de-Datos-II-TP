@@ -34,7 +34,9 @@ class ContenedorRepository:
                     """,
                     (contenedor.codigo_internacional, contenedor.tipo, contenedor.capacidad, contenedor.estado),
                 )
-                return cursor.lastrowid
+                id_contenedor = cursor.lastrowid
+                logger.info("Contenedor creado id=%s", id_contenedor)
+                return id_contenedor
         except MySQLError as e:
             if e.errno == _MYSQL_DUPLICATE_ENTRY:
                 logger.warning("Alta de contenedor duplicada: %s", e)
@@ -105,6 +107,7 @@ class ContenedorRepository:
                         contenedor.id_contenedor,
                     ),
                 )
+            logger.info("Contenedor actualizado id=%s", contenedor.id_contenedor)
         except MySQLError as e:
             if e.errno == _MYSQL_DUPLICATE_ENTRY:
                 logger.warning("Actualización de contenedor duplicada: %s", e)
@@ -122,6 +125,7 @@ class ContenedorRepository:
         try:
             with transaction() as cursor:
                 cursor.execute("DELETE FROM contenedor WHERE id_contenedor = %s", (id_contenedor,))
+            logger.info("Contenedor eliminado id=%s", id_contenedor)
         except MySQLError as e:
             if e.errno == _MYSQL_ROW_IS_REFERENCED:
                 logger.warning("Intento de borrar contenedor en uso: %s", e)

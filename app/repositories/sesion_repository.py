@@ -57,6 +57,7 @@ class SesionRepository:
             )
             self._client.expire(key, TTL_SECONDS)
             self._client.sadd(_user_sessions_key(id_usuario), id_sesion)
+            logger.info("Sesión creada id=%s id_usuario=%s", id_sesion, id_usuario)
             return Sesion(id_sesion=id_sesion, id_usuario=id_usuario, fecha_inicio=fecha_inicio)
         except RedisError as e:
             logger.exception("Error creando sesión")
@@ -107,6 +108,7 @@ class SesionRepository:
                 return False
             self._client.delete(_session_key(id_sesion))
             self._client.srem(_user_sessions_key(int(data["id_usuario"])), id_sesion)
+            logger.info("Sesión cerrada id=%s", id_sesion)
             return True
         except RedisError as e:
             logger.exception("Error cerrando sesión")

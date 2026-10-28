@@ -54,6 +54,7 @@ class ClienteRepository:
                     cursor, "cliente", id_cliente, "creado",
                     {"id_cliente": id_cliente, "razon_social": cliente.razon_social},
                 )
+                logger.info("Cliente creado id=%s", id_cliente)
                 return id_cliente
         except MySQLError as e:
             if e.errno == _MYSQL_DUPLICATE_ENTRY:
@@ -144,6 +145,7 @@ class ClienteRepository:
                     cursor, "cliente", cliente.id_cliente, "actualizado",
                     {"id_cliente": cliente.id_cliente, "razon_social": cliente.razon_social},
                 )
+            logger.info("Cliente actualizado id=%s", cliente.id_cliente)
         except MySQLError as e:
             if e.errno == _MYSQL_DUPLICATE_ENTRY:
                 logger.warning("Actualización de cliente duplicada: %s", e)
@@ -163,6 +165,7 @@ class ClienteRepository:
                     "UPDATE cliente SET estado = 'inactivo' WHERE id_cliente = %s",
                     (id_cliente,),
                 )
+            logger.info("Cliente dado de baja id=%s", id_cliente)
         except MySQLError as e:
             logger.exception("Error dando de baja cliente")
             raise RepositoryError(f"No se pudo dar de baja el cliente: {e}") from e

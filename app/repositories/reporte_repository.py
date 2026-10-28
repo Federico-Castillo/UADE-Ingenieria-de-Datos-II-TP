@@ -29,7 +29,9 @@ class ReporteRepository:
                     "INSERT INTO reporte (id_usuario, tipo, formato, estado) VALUES (%s, %s, %s, %s)",
                     (reporte.id_usuario, reporte.tipo, reporte.formato, reporte.estado),
                 )
-                return cursor.lastrowid
+                id_reporte = cursor.lastrowid
+                logger.info("Reporte creado id=%s", id_reporte)
+                return id_reporte
         except MySQLError as e:
             logger.exception("Error creando reporte")
             raise RepositoryError(f"No se pudo crear el reporte: {e}") from e
@@ -68,6 +70,7 @@ class ReporteRepository:
         try:
             with transaction() as cursor:
                 cursor.execute("DELETE FROM reporte WHERE id_reporte = %s", (id_reporte,))
+            logger.info("Reporte eliminado id=%s", id_reporte)
         except MySQLError as e:
             logger.exception("Error eliminando reporte")
             raise RepositoryError(f"No se pudo eliminar el reporte: {e}") from e

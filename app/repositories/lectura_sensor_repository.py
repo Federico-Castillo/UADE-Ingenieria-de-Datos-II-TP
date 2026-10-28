@@ -78,6 +78,7 @@ class LecturaSensorRepository:
             )
             lectura.id_lectura = str(id_lectura)
             lectura.fecha_hora = fecha_hora
+            logger.info("Lectura de sensor creada id=%s id_sensor=%s", lectura.id_lectura, lectura.id_sensor)
             return lectura
         except _CASSANDRA_ERRORS as e:
             logger.exception("Error creando lectura de sensor")

@@ -42,7 +42,9 @@ class IncidenteRepository:
                 "fecha": incidente.fecha or datetime.now(timezone.utc),
             }
             result = self._collection.insert_one(doc)
-            return str(result.inserted_id)
+            id_incidente = str(result.inserted_id)
+            logger.info("Incidente creado id=%s id_envio=%s tipo=%s severidad=%s", id_incidente, incidente.id_envio, incidente.tipo, incidente.severidad)
+            return id_incidente
         except PyMongoError as e:
             logger.exception("Error creando incidente")
             raise RepositoryError(f"No se pudo crear el incidente: {e}") from e
@@ -79,7 +81,10 @@ class IncidenteRepository:
             result = self._collection.update_one(
                 {"_id": ObjectId(id_incidente)}, {"$set": {"estado": estado}}
             )
-            return result.matched_count > 0
+            actualizado = result.matched_count > 0
+            if actualizado:
+                logger.info("Incidente actualizado id=%s nuevo_estado=%s", id_incidente, estado)
+            return actualizado
         except InvalidId:
             return False
         except PyMongoError as e:

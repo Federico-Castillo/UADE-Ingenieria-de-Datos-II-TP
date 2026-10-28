@@ -56,6 +56,10 @@ class FacturaRecibidaRepository:
                     """,
                     (factura.id_proveedor, factura.id_operador_logistico, factura.importe_total),
                 )
+                logger.info(
+                    "Factura recibida creada id=%s id_proveedor=%s id_operador_logistico=%s importe_total=%s",
+                    id_factura, factura.id_proveedor, factura.id_operador_logistico, factura.importe_total,
+                )
                 return id_factura
         except MySQLError as e:
             logger.exception("Error creando factura recibida")

@@ -60,6 +60,10 @@ class PagoRepository:
                     "UPDATE factura SET estado = %s WHERE id_factura = %s", (nuevo_estado, pago.id_factura)
                 )
 
+                logger.info(
+                    "Pago creado id=%s id_factura=%s monto=%s nuevo_estado_factura=%s",
+                    id_pago, pago.id_factura, pago.monto, nuevo_estado,
+                )
                 return id_pago
         except MySQLError as e:
             logger.exception("Error creando pago")
