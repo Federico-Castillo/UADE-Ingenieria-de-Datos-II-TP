@@ -237,6 +237,8 @@ class ReporteOperativoService:
         filas.sort(key=lambda f: f["cantidad_incidentes"], reverse=True)
         return filas[:top_n]
 
+    # --- Rankings ---
+
     def ranking_clientes_por_volumen(self, top_n: int = 10) -> list[dict]:
         """"Volumen transportado" = suma de Contenedor.capacidad de todos los
         contenedores que el cliente movió (vía envio_contenedor), no la
@@ -254,3 +256,40 @@ class ReporteOperativoService:
             for f in filas
         ]
         return resultado[:top_n]
+
+    # --- Análisis histórico de desempeño ---
+
+    def desempeno_historico_mensual(self) -> list[dict]:
+        """Única agregación de este Service que mira evolución en el tiempo
+        (las demás son todas foto actual, agrupadas por cliente/país/estado).
+        Agrupa los envíos por mes de fecha_creacion ('YYYY-MM', mismo formato
+        de período que CierreCuentaCorrienteService) y calcula, para cada
+        mes: cantidad de envíos creados, cantidad y % demorados, incidentes
+        asociados, y tiempo promedio de entrega de los que ya fueron
+        entregados (reutiliza _duraciones_entrega(), que ya excluye los
+        envíos sin evento 'entregado' en vez de contarlos como 0)."""
+        incidentes_por_envio = self._incidentes_por_envio()
+        horas_por_envio = {d["id_envio"]: d["horas"] for d in self._duraciones_entrega()}
+
+        envios_por_periodo = defaultdict(list)
+        for envio in self._envio_repo.listar():
+            if envio.fecha_creacion is None:
+                continue
+            envios_por_periodo[envio.fecha_creacion.strftime("%Y-%m")].append(envio)
+
+        resultado = []
+        for periodo, envios in sorted(envios_por_periodo.items()):
+            cantidad = len(envios)
+            demorados = sum(1 for e in envios if e.estado == "demorado")
+            incidentes = sum(incidentes_por_envio.get(e.id_envio, 0) for e in envios)
+            horas_entregados = [horas_por_envio[e.id_envio] for e in envios if e.id_envio in horas_por_envio]
+            resultado.append({
+                "periodo": periodo,
+                "cantidad_envios": cantidad,
+                "cantidad_demorados": demorados,
+                "porcentaje_demorados": demorados / cantidad * 100,
+                "cantidad_incidentes": incidentes,
+                "cantidad_entregados": len(horas_entregados),
+                "horas_promedio_entrega": sum(horas_entregados) / len(horas_entregados) if horas_entregados else None,
+            })
+        return resultado

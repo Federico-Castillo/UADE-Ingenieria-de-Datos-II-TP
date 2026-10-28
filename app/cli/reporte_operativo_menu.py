@@ -139,6 +139,21 @@ def _ranking_clientes_por_volumen(service: ReporteOperativoService) -> None:
         )
 
 
+def _desempeno_historico_mensual(service: ReporteOperativoService) -> None:
+    print("\n-- Análisis Histórico de Desempeño (evolución mensual) --")
+    filas = service.desempeno_historico_mensual()
+    if not filas:
+        print("  No hay envíos registrados todavía.")
+    for f in filas:
+        promedio = f"{f['horas_promedio_entrega']:.1f}hs" if f["horas_promedio_entrega"] is not None else "N/D"
+        print(
+            f"  {f['periodo']}: {f['cantidad_envios']} envío(s) | "
+            f"{f['cantidad_demorados']} demorado(s) ({f['porcentaje_demorados']:.1f}%) | "
+            f"{f['cantidad_incidentes']} incidente(s) | "
+            f"entrega promedio {promedio} ({f['cantidad_entregados']} entregado(s))"
+        )
+
+
 def _costos_por_tipo_transporte(_: ReporteOperativoService) -> None:
     print("\n-- Costos por Tipo de Transporte --")
     filas = TramoService().costos_por_medio_transporte()
@@ -166,6 +181,7 @@ _ACCIONES = {
     "12": ("Costos por tipo de transporte", _costos_por_tipo_transporte),
     "13": ("Ranking: rutas con más incidentes", _ranking_rutas_por_incidentes),
     "14": ("Ranking: clientes por volumen transportado", _ranking_clientes_por_volumen),
+    "15": ("Análisis histórico de desempeño (evolución mensual)", _desempeno_historico_mensual),
 }
 
 

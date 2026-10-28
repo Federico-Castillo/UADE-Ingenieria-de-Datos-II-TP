@@ -149,6 +149,51 @@ def test_ranking_rutas_por_incidentes_excluye_rutas_sin_incidentes(service, envi
     assert not any(f["origen"] == "TEST_RutaSana1" and f["destino"] == "TEST_RutaSana2" for f in filas)
 
 
+def test_desempeno_historico_mensual_cuenta_demorados_e_incidentes_del_mes_actual(
+    service, envio_repo, id_cliente_valido
+):
+    from app.services.cierre_cuenta_corriente_service import periodo_actual
+
+    periodo = periodo_actual()
+    antes = next((f for f in service.desempeno_historico_mensual() if f["periodo"] == periodo), None)
+    cantidad_antes = antes["cantidad_envios"] if antes else 0
+    demorados_antes = antes["cantidad_demorados"] if antes else 0
+    incidentes_antes = antes["cantidad_incidentes"] if antes else 0
+
+    id_envio = envio_repo.crear(
+        Envio(id_cliente=id_cliente_valido, origen="TEST_A", destino="TEST_B", estado="demorado")
+    )
+    IncidenteService().registrar(Incidente(id_envio=id_envio, tipo="TEST_incidente_historico", severidad="alta"))
+
+    despues = next(f for f in service.desempeno_historico_mensual() if f["periodo"] == periodo)
+
+    assert despues["cantidad_envios"] - cantidad_antes == 1
+    assert despues["cantidad_demorados"] - demorados_antes == 1
+    assert despues["cantidad_incidentes"] - incidentes_antes == 1
+
+
+def test_desempeno_historico_mensual_calcula_horas_promedio_entrega(service, envio_repo, id_cliente_valido):
+    from app.services.cierre_cuenta_corriente_service import periodo_actual
+
+    id_envio = envio_repo.crear(
+        Envio(id_cliente=id_cliente_valido, origen="TEST_A", destino="TEST_B", estado="entregado")
+    )
+    envio = envio_repo.obtener_por_id(id_envio)
+    EventoLogisticoService().registrar(
+        EventoLogistico(
+            id_envio=id_envio,
+            tipo_evento="entregado",
+            descripcion="TEST_evento_entrega_historico",
+            fecha_hora=envio.fecha_creacion + timedelta(hours=8),
+        )
+    )
+
+    fila = next(f for f in service.desempeno_historico_mensual() if f["periodo"] == periodo_actual())
+
+    assert fila["cantidad_entregados"] >= 1
+    assert fila["horas_promedio_entrega"] is not None
+
+
 def test_ranking_clientes_por_volumen(service, envio_repo, contenedor_repo, id_cliente_valido):
     id_envio = envio_repo.crear(Envio(id_cliente=id_cliente_valido, origen="TEST_A", destino="TEST_B"))
     id_contenedor = contenedor_repo.crear(
