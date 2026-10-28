@@ -1,5 +1,5 @@
 """Menú ABM de Contenedor."""
-from app.cli.io_utils import confirmar, leer_decimal, leer_entero, leer_no_vacio, pausar
+from app.cli.io_utils import confirmar, leer_decimal, leer_entero, leer_no_vacio, limpiar_pantalla, pausar
 from app.core.exceptions import AppError
 from app.domain.contenedor import Contenedor
 from app.services.contenedor_service import ContenedorService
@@ -84,6 +84,7 @@ _ACCIONES = {
 def menu_contenedor() -> None:
     service = ContenedorService()
     while True:
+        limpiar_pantalla()
         print("\n=== Gestión de Contenedores ===")
         for key, (nombre, _) in _ACCIONES.items():
             print(f"{key}) {nombre}")

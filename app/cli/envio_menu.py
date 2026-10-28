@@ -1,5 +1,5 @@
 """Menú ABM de Envio."""
-from app.cli.io_utils import confirmar, leer_entero, leer_no_vacio, leer_opcion, pausar
+from app.cli.io_utils import confirmar, leer_entero, leer_no_vacio, leer_opcion, limpiar_pantalla, pausar
 from app.core.exceptions import AppError
 from app.domain.envio import Envio
 from app.services.envio_contenedor_service import EnvioContenedorService
@@ -120,6 +120,7 @@ _ACCIONES = {
 def menu_envio() -> None:
     service = EnvioService()
     while True:
+        limpiar_pantalla()
         print("\n=== Gestión de Envíos ===")
         for key, (nombre, _) in _ACCIONES.items():
             print(f"{key}) {nombre}")

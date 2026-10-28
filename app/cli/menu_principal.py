@@ -11,6 +11,7 @@ from app.cli.factura_menu import menu_factura
 from app.cli.factura_recibida_menu import menu_factura_recibida
 from app.cli.grupo_trabajo_menu import menu_grupo_trabajo
 from app.cli.incidente_menu import menu_incidente
+from app.cli.io_utils import limpiar_pantalla
 from app.cli.lectura_sensor_menu import menu_lectura_sensor
 from app.cli.mensaje_menu import menu_mensaje
 from app.cli.operador_logistico_menu import menu_operador_logistico
@@ -65,6 +66,7 @@ def menu_principal() -> None:
     ]
 
     while True:
+        limpiar_pantalla()
         print("\n===== TP Persistencia Políglota — Menú Principal =====")
         for i, (nombre, _) in enumerate(opciones, start=1):
             print(f"{i}) {nombre}")

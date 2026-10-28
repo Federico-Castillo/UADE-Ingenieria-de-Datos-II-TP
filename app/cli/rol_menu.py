@@ -1,5 +1,5 @@
 """Menú ABM de Rol."""
-from app.cli.io_utils import confirmar, leer_entero, leer_no_vacio, pausar
+from app.cli.io_utils import confirmar, leer_entero, leer_no_vacio, limpiar_pantalla, pausar
 from app.core.exceptions import AppError
 from app.domain.rol import Rol
 from app.services.rol_service import RolService
@@ -64,6 +64,7 @@ _ACCIONES = {
 def menu_rol() -> None:
     service = RolService()
     while True:
+        limpiar_pantalla()
         print("\n=== Gestión de Roles ===")
         for key, (nombre, _) in _ACCIONES.items():
             print(f"{key}) {nombre}")

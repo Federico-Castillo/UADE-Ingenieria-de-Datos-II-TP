@@ -1,5 +1,5 @@
 """Menú de Mensaje (MongoDB): chat privado y grupal."""
-from app.cli.io_utils import leer_entero, leer_no_vacio, leer_opcion, pausar
+from app.cli.io_utils import leer_entero, leer_no_vacio, leer_opcion, limpiar_pantalla, pausar
 from app.core.exceptions import AppError
 from app.domain.mensaje import Mensaje
 from app.services.mensaje_service import MensajeService
@@ -66,6 +66,7 @@ _ACCIONES = {
 def menu_mensaje() -> None:
     service = MensajeService()
     while True:
+        limpiar_pantalla()
         print("\n=== Mensajería (MongoDB) ===")
         for key, (nombre, _) in _ACCIONES.items():
             print(f"{key}) {nombre}")

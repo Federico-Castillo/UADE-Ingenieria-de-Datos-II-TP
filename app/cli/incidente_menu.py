@@ -1,5 +1,5 @@
 """Menú de Incidente (MongoDB)."""
-from app.cli.io_utils import confirmar, leer_entero, leer_no_vacio, leer_opcion, leer_opcional, pausar
+from app.cli.io_utils import confirmar, leer_entero, leer_no_vacio, leer_opcion, leer_opcional, limpiar_pantalla, pausar
 from app.core.exceptions import AppError
 from app.domain.incidente import Incidente
 from app.services.incidente_service import IncidenteService
@@ -63,6 +63,7 @@ _ACCIONES = {
 def menu_incidente() -> None:
     service = IncidenteService()
     while True:
+        limpiar_pantalla()
         print("\n=== Incidentes (MongoDB) ===")
         for key, (nombre, _) in _ACCIONES.items():
             print(f"{key}) {nombre}")

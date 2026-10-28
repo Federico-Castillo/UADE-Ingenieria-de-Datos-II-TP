@@ -2,7 +2,7 @@
 (listado filtrado por id_contenedor) del checklist de promoción."""
 from datetime import date
 
-from app.cli.io_utils import confirmar, leer_entero, leer_no_vacio, leer_opcion, leer_opcional, pausar
+from app.cli.io_utils import confirmar, leer_entero, leer_no_vacio, leer_opcion, leer_opcional, limpiar_pantalla, pausar
 from app.core.exceptions import AppError
 from app.domain.sensor_iot import SensorIoT
 from app.services.sensor_iot_service import SensorIoTService
@@ -95,6 +95,7 @@ _ACCIONES = {
 def menu_sensor_iot() -> None:
     service = SensorIoTService()
     while True:
+        limpiar_pantalla()
         print("\n=== Gestión de Sensores IoT ===")
         for key, (nombre, _) in _ACCIONES.items():
             print(f"{key}) {nombre}")

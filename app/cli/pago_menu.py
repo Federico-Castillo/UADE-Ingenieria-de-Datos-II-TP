@@ -1,7 +1,7 @@
 """Menú de Pago. Alta únicamente (registro de pago): no tiene sentido
 modificar/borrar un pago ya aplicado al saldo sin un proceso de reverso
 explícito, que queda fuera de alcance de esta entrega."""
-from app.cli.io_utils import leer_decimal, leer_entero, leer_no_vacio, pausar
+from app.cli.io_utils import leer_decimal, leer_entero, leer_no_vacio, limpiar_pantalla, pausar
 from app.core.exceptions import AppError
 from app.domain.pago import Pago
 from app.services.pago_service import PagoService
@@ -41,6 +41,7 @@ _ACCIONES = {
 def menu_pago() -> None:
     service = PagoService()
     while True:
+        limpiar_pantalla()
         print("\n=== Gestión de Pagos ===")
         for key, (nombre, _) in _ACCIONES.items():
             print(f"{key}) {nombre}")

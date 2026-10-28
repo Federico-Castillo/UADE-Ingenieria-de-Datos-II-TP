@@ -1,6 +1,6 @@
 """Menú de CuentaCorrientePagable: solo lectura, el saldo se gestiona
 automáticamente desde FacturaRecibida/PagoEmitido."""
-from app.cli.io_utils import leer_entero, leer_opcion, pausar
+from app.cli.io_utils import leer_entero, leer_opcion, limpiar_pantalla, pausar
 from app.core.exceptions import AppError
 from app.domain.cuenta_corriente_pagable import CuentaCorrientePagable
 from app.services.cuenta_corriente_pagable_service import CuentaCorrientePagableService
@@ -39,6 +39,7 @@ _ACCIONES = {
 def menu_cuenta_corriente_pagable() -> None:
     service = CuentaCorrientePagableService()
     while True:
+        limpiar_pantalla()
         print("\n=== Cuentas Corrientes Pagables (Proveedores/Operadores) ===")
         for key, (nombre, _) in _ACCIONES.items():
             print(f"{key}) {nombre}")

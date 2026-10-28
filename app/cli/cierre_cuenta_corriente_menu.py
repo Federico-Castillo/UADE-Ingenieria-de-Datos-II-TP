@@ -2,7 +2,7 @@
 para correrse una vez por mes (manualmente desde este menú, no hay scheduler
 automático en el alcance del TP), pero es idempotente: reejecutar el cierre
 de un período ya cerrado actualiza el snapshot en vez de duplicarlo."""
-from app.cli.io_utils import leer_entero, leer_no_vacio, pausar
+from app.cli.io_utils import leer_entero, leer_no_vacio, limpiar_pantalla, pausar
 from app.core.exceptions import AppError
 from app.domain.cierre_cuenta_corriente import CierreCuentaCorriente
 from app.domain.cierre_cuenta_corriente_pagable import CierreCuentaCorrientePagable
@@ -84,6 +84,7 @@ _ACCIONES = {
 def menu_cierre_cuenta_corriente() -> None:
     service = CierreCuentaCorrienteService()
     while True:
+        limpiar_pantalla()
         print("\n=== Cierre Mensual de Cuentas Corrientes (proceso periódico) ===")
         for key, (nombre, _) in _ACCIONES.items():
             print(f"{key}) {nombre}")

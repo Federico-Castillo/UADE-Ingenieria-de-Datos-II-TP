@@ -1,6 +1,6 @@
 """Menú ABM de Alerta (Redis, con TTL). Junto con Regla forma el "ABM Reglas y
 Alertas" del checklist de promoción."""
-from app.cli.io_utils import confirmar, leer_entero, leer_no_vacio, pausar
+from app.cli.io_utils import confirmar, leer_entero, leer_no_vacio, limpiar_pantalla, pausar
 from app.core.exceptions import AppError
 from app.domain.alerta import Alerta
 from app.services.alerta_service import AlertaService
@@ -47,6 +47,7 @@ _ACCIONES = {
 def menu_alerta() -> None:
     service = AlertaService()
     while True:
+        limpiar_pantalla()
         print("\n=== Gestión de Alertas ===")
         for key, (nombre, _) in _ACCIONES.items():
             print(f"{key}) {nombre}")

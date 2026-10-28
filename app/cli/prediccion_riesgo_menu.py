@@ -1,7 +1,7 @@
 """Menú de PrediccionRiesgo (MongoDB). El alta manual sigue disponible para
 casos puntuales; la opción 4 corre el proceso real de predicción con
 scikit-learn (ver app/services/prediccion_ml_service.py)."""
-from app.cli.io_utils import leer_decimal, leer_entero, pausar
+from app.cli.io_utils import leer_decimal, leer_entero, limpiar_pantalla, pausar
 from app.core.exceptions import AppError
 from app.domain.prediccion_riesgo import PrediccionRiesgo
 from app.services.prediccion_ml_service import PrediccionMLService
@@ -67,6 +67,7 @@ _ACCIONES = {
 def menu_prediccion_riesgo() -> None:
     service = PrediccionRiesgoService()
     while True:
+        limpiar_pantalla()
         print("\n=== Predicciones de Riesgo (MongoDB) ===")
         for key, (nombre, _) in _ACCIONES.items():
             print(f"{key}) {nombre}")

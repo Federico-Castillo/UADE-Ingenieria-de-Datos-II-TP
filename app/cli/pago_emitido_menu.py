@@ -1,5 +1,5 @@
 """Menú de PagoEmitido (pagos a proveedores/operadores logísticos)."""
-from app.cli.io_utils import leer_decimal, leer_entero, leer_no_vacio, pausar
+from app.cli.io_utils import leer_decimal, leer_entero, leer_no_vacio, limpiar_pantalla, pausar
 from app.core.exceptions import AppError
 from app.domain.pago_emitido import PagoEmitido
 from app.services.pago_emitido_service import PagoEmitidoService
@@ -42,6 +42,7 @@ _ACCIONES = {
 def menu_pago_emitido() -> None:
     service = PagoEmitidoService()
     while True:
+        limpiar_pantalla()
         print("\n=== Gestión de Pagos Emitidos ===")
         for key, (nombre, _) in _ACCIONES.items():
             print(f"{key}) {nombre}")

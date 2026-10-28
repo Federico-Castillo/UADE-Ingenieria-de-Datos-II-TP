@@ -1,7 +1,7 @@
 """Menú de Factura. No tiene baja/modificación libre: es un documento
 contable, y editar importe_total rompería la consistencia del saldo ya sumado
 a la cuenta corriente en el alta."""
-from app.cli.io_utils import leer_decimal, leer_entero, pausar
+from app.cli.io_utils import leer_decimal, leer_entero, limpiar_pantalla, pausar
 from app.core.exceptions import AppError
 from app.domain.factura import Factura
 from app.services.factura_service import FacturaService
@@ -50,6 +50,7 @@ _ACCIONES = {
 def menu_factura() -> None:
     service = FacturaService()
     while True:
+        limpiar_pantalla()
         print("\n=== Gestión de Facturas ===")
         for key, (nombre, _) in _ACCIONES.items():
             print(f"{key}) {nombre}")

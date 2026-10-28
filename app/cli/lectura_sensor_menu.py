@@ -6,7 +6,7 @@ contenedor (combinando todos sus sensores), y la visualización geográfica
 del recorrido en un mapa HTML."""
 from datetime import datetime
 
-from app.cli.io_utils import leer_entero, pausar
+from app.cli.io_utils import leer_entero, limpiar_pantalla, pausar
 from app.core.exceptions import AppError
 from app.domain.lectura_sensor import LecturaSensor
 from app.services.lectura_sensor_service import LecturaSensorService
@@ -119,6 +119,7 @@ _ACCIONES = {
 def menu_lectura_sensor() -> None:
     service = LecturaSensorService()
     while True:
+        limpiar_pantalla()
         print("\n=== Monitoreo IoT: Lecturas de Sensor (Cassandra) ===")
         for key, (nombre, _) in _ACCIONES.items():
             print(f"{key}) {nombre}")

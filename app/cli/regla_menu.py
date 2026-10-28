@@ -1,5 +1,5 @@
 """Menú ABM de Regla (parte de "ABM Reglas y Alertas" junto con Alerta en Redis)."""
-from app.cli.io_utils import confirmar, leer_decimal, leer_entero, leer_no_vacio, leer_opcion, pausar
+from app.cli.io_utils import confirmar, leer_decimal, leer_entero, leer_no_vacio, leer_opcion, limpiar_pantalla, pausar
 from app.core.exceptions import AppError
 from app.domain.regla import Regla
 from app.services.regla_service import ReglaService
@@ -80,6 +80,7 @@ _ACCIONES = {
 def menu_regla() -> None:
     service = ReglaService()
     while True:
+        limpiar_pantalla()
         print("\n=== Gestión de Reglas ===")
         for key, (nombre, _) in _ACCIONES.items():
             print(f"{key}) {nombre}")

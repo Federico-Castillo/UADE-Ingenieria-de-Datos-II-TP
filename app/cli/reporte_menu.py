@@ -2,7 +2,7 @@
 real del reporte, cuando se implementen los reportes operativos/analíticos
 pedidos por la consigna, se calculará aparte; esta entidad solo registra el
 pedido/metadata)."""
-from app.cli.io_utils import confirmar, leer_entero, leer_no_vacio, leer_opcion, pausar
+from app.cli.io_utils import confirmar, leer_entero, leer_no_vacio, leer_opcion, limpiar_pantalla, pausar
 from app.core.exceptions import AppError
 from app.domain.reporte import Reporte
 from app.services.reporte_service import ReporteService
@@ -67,6 +67,7 @@ _ACCIONES = {
 def menu_reporte() -> None:
     service = ReporteService()
     while True:
+        limpiar_pantalla()
         print("\n=== Gestión de Reportes ===")
         for key, (nombre, _) in _ACCIONES.items():
             print(f"{key}) {nombre}")

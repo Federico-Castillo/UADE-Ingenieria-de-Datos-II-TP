@@ -1,5 +1,10 @@
 """Helpers de entrada/salida para los menús de consola."""
 import getpass
+import os
+
+
+def limpiar_pantalla() -> None:
+    os.system("cls" if os.name == "nt" else "clear")
 
 
 def leer_password(etiqueta: str = "Contraseña") -> str:

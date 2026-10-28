@@ -1,6 +1,6 @@
 """Menú de FacturaRecibida. El alta pide elegir si el emisor es un proveedor
 o un operador logístico, consistente con la exclusión mutua del esquema."""
-from app.cli.io_utils import leer_decimal, leer_entero, leer_opcion, pausar
+from app.cli.io_utils import leer_decimal, leer_entero, leer_opcion, limpiar_pantalla, pausar
 from app.core.exceptions import AppError
 from app.domain.factura_recibida import FacturaRecibida
 from app.services.factura_recibida_service import FacturaRecibidaService
@@ -68,6 +68,7 @@ _ACCIONES = {
 def menu_factura_recibida() -> None:
     service = FacturaRecibidaService()
     while True:
+        limpiar_pantalla()
         print("\n=== Gestión de Facturas Recibidas ===")
         for key, (nombre, _) in _ACCIONES.items():
             print(f"{key}) {nombre}")

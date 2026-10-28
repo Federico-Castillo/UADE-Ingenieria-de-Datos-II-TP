@@ -4,7 +4,7 @@ worker también puede correrse como proceso separado
 (worker/outbox_worker.py), igual que scripts/simulador_iot.py — este menú
 sirve para inspeccionarlo y para disparar un ciclo manual durante la
 defensa, sin tener que abrir otra terminal."""
-from app.cli.io_utils import leer_no_vacio, pausar
+from app.cli.io_utils import leer_no_vacio, limpiar_pantalla, pausar
 from app.core.exceptions import AppError
 from app.domain.outbox_evento import OutboxEvento
 from app.services.outbox_worker_service import OutboxWorkerService
@@ -59,6 +59,7 @@ _ACCIONES = {
 def menu_outbox() -> None:
     service = OutboxWorkerService()
     while True:
+        limpiar_pantalla()
         print("\n=== Worker de Outbox (sincronización MySQL -> Neo4j) ===")
         for key, (nombre, _) in _ACCIONES.items():
             print(f"{key}) {nombre}")

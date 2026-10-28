@@ -1,5 +1,5 @@
 """Menú de GrupoTrabajo (MongoDB)."""
-from app.cli.io_utils import leer_entero, leer_no_vacio, pausar
+from app.cli.io_utils import leer_entero, leer_no_vacio, limpiar_pantalla, pausar
 from app.core.exceptions import AppError
 from app.domain.grupo_trabajo import GrupoTrabajo
 from app.services.grupo_trabajo_service import GrupoTrabajoService
@@ -59,6 +59,7 @@ _ACCIONES = {
 def menu_grupo_trabajo() -> None:
     service = GrupoTrabajoService()
     while True:
+        limpiar_pantalla()
         print("\n=== Grupos de Trabajo (MongoDB) ===")
         for key, (nombre, _) in _ACCIONES.items():
             print(f"{key}) {nombre}")

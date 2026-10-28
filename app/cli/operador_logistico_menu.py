@@ -1,5 +1,5 @@
 """Menú ABM de OperadorLogistico."""
-from app.cli.io_utils import confirmar, leer_entero, leer_no_vacio, leer_opcion, leer_opcional, pausar
+from app.cli.io_utils import confirmar, leer_entero, leer_no_vacio, leer_opcion, leer_opcional, limpiar_pantalla, pausar
 from app.core.exceptions import AppError
 from app.domain.operador_logistico import OperadorLogistico
 from app.services.operador_logistico_service import OperadorLogisticoService
@@ -84,6 +84,7 @@ _ACCIONES = {
 def menu_operador_logistico() -> None:
     service = OperadorLogisticoService()
     while True:
+        limpiar_pantalla()
         print("\n=== Gestión de Operadores Logísticos ===")
         for key, (nombre, _) in _ACCIONES.items():
             print(f"{key}) {nombre}")

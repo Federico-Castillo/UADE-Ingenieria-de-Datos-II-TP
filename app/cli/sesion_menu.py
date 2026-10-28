@@ -1,5 +1,5 @@
 """Menú ABM de Sesión (Redis, con TTL)."""
-from app.cli.io_utils import leer_entero, leer_no_vacio, pausar
+from app.cli.io_utils import leer_entero, leer_no_vacio, limpiar_pantalla, pausar
 from app.core.exceptions import AppError
 from app.domain.sesion import Sesion
 from app.services.sesion_service import SesionService
@@ -53,6 +53,7 @@ _ACCIONES = {
 def menu_sesion() -> None:
     service = SesionService()
     while True:
+        limpiar_pantalla()
         print("\n=== Gestión de Sesiones ===")
         for key, (nombre, _) in _ACCIONES.items():
             print(f"{key}) {nombre}")

@@ -1,5 +1,5 @@
 """Menú de EventoLogistico (MongoDB)."""
-from app.cli.io_utils import leer_entero, leer_no_vacio, leer_opcional, pausar
+from app.cli.io_utils import leer_entero, leer_no_vacio, leer_opcional, limpiar_pantalla, pausar
 from app.core.exceptions import AppError
 from app.domain.evento_logistico import EventoLogistico
 from app.services.evento_logistico_service import EventoLogisticoService
@@ -51,6 +51,7 @@ _ACCIONES = {
 def menu_evento_logistico() -> None:
     service = EventoLogisticoService()
     while True:
+        limpiar_pantalla()
         print("\n=== Eventos Logísticos (MongoDB) ===")
         for key, (nombre, _) in _ACCIONES.items():
             print(f"{key}) {nombre}")

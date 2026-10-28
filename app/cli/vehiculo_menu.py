@@ -1,5 +1,5 @@
 """Menú ABM de Vehiculo."""
-from app.cli.io_utils import confirmar, leer_entero, leer_no_vacio, leer_opcion, pausar
+from app.cli.io_utils import confirmar, leer_entero, leer_no_vacio, leer_opcion, limpiar_pantalla, pausar
 from app.core.exceptions import AppError
 from app.domain.vehiculo import Vehiculo
 from app.services.vehiculo_service import VehiculoService
@@ -72,6 +72,7 @@ _ACCIONES = {
 def menu_vehiculo() -> None:
     service = VehiculoService()
     while True:
+        limpiar_pantalla()
         print("\n=== Gestión de Vehículos ===")
         for key, (nombre, _) in _ACCIONES.items():
             print(f"{key}) {nombre}")

@@ -1,5 +1,5 @@
 """Menú del proceso periódico "detección de sensores inactivos"."""
-from app.cli.io_utils import confirmar, leer_decimal, pausar
+from app.cli.io_utils import confirmar, leer_decimal, limpiar_pantalla, pausar
 from app.core.exceptions import AppError
 from app.domain.sensor_iot import SensorIoT
 from app.services.sensor_inactivo_service import UMBRAL_HORAS_DEFAULT, SensorInactivoService
@@ -46,6 +46,7 @@ _ACCIONES = {
 def menu_sensor_inactivo() -> None:
     service = SensorInactivoService()
     while True:
+        limpiar_pantalla()
         print("\n=== Detección de Sensores Inactivos (proceso periódico) ===")
         for key, (nombre, _) in _ACCIONES.items():
             print(f"{key}) {nombre}")

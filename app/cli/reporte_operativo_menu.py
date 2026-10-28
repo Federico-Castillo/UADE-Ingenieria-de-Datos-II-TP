@@ -1,7 +1,7 @@
 """Menú de Reportes Operativos y Analíticos: agregaciones de solo lectura
 (no ABMs). Separado a propósito de "Gestión de Reportes" (menu_reporte.py),
 que solo registra metadata del pedido — ver comentario en reporte_menu.py."""
-from app.cli.io_utils import pausar
+from app.cli.io_utils import limpiar_pantalla, pausar
 from app.core.exceptions import AppError
 from app.services.reporte_operativo_service import ReporteOperativoService
 from app.services.tramo_service import TramoService
@@ -188,6 +188,7 @@ _ACCIONES = {
 def menu_reporte_operativo() -> None:
     service = ReporteOperativoService()
     while True:
+        limpiar_pantalla()
         print("\n=== Reportes Operativos y Analíticos ===")
         for key, (nombre, _) in _ACCIONES.items():
             print(f"{key}) {nombre}")

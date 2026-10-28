@@ -9,6 +9,7 @@ from app.cli.io_utils import (
     leer_no_vacio,
     leer_opcion,
     leer_opcional,
+    limpiar_pantalla,
     pausar,
 )
 from app.core.exceptions import AppError
@@ -115,6 +116,7 @@ _ACCIONES = {
 def menu_tramo() -> None:
     service = TramoService()
     while True:
+        limpiar_pantalla()
         print("\n=== Tramos y Rutas (Neo4j) ===")
         for key, (nombre, _) in _ACCIONES.items():
             print(f"{key}) {nombre}")

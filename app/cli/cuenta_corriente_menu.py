@@ -1,6 +1,6 @@
 """Menú de CuentaCorriente: solo lectura, el saldo se gestiona automáticamente
 desde Factura/Pago (ver cuenta_corriente_repository.py)."""
-from app.cli.io_utils import leer_entero, pausar
+from app.cli.io_utils import leer_entero, limpiar_pantalla, pausar
 from app.core.exceptions import AppError
 from app.domain.cuenta_corriente import CuentaCorriente
 from app.services.cuenta_corriente_service import CuentaCorrienteService
@@ -35,6 +35,7 @@ _ACCIONES = {
 def menu_cuenta_corriente() -> None:
     service = CuentaCorrienteService()
     while True:
+        limpiar_pantalla()
         print("\n=== Cuentas Corrientes (Clientes) ===")
         for key, (nombre, _) in _ACCIONES.items():
             print(f"{key}) {nombre}")
