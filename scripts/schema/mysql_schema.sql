@@ -275,7 +275,7 @@ CREATE TABLE cierre_cuenta_corriente_pagable (
 -- transacción que el INSERT/UPDATE que origina el evento, para que la
 -- propagación a Neo4j nunca se pierda por una caída justo después del
 -- commit. El worker (worker/outbox_worker.py) lee los 'pendiente', propaga,
--- y marca 'procesado'; si falla repetidas veces pasa a 'dead_letter' en vez
+-- y marca 'procesado', si falla repetidas veces pasa a 'dead_letter' en vez
 -- de reintentar para siempre (ver punto 6: reintentos + dead-letter queue).
 CREATE TABLE outbox_eventos (
   id_evento CHAR(36) PRIMARY KEY,
