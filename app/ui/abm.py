@@ -14,6 +14,13 @@ from app.ui.referencias import clave_primaria  # noqa: F401 (se reexporta: lo us
 _ALTAS = ("dar_alta", "crear", "registrar", "generar", "registrar_pago", "enviar")
 _BAJAS = ("dar_baja", "eliminar")
 
+# Entidades que no se dan de baja sino que se CIERRAN cambiando su estado: el
+# registro se conserva (un incidente es un hecho que ocurrió). Clave: nombre
+# del service; valor: (método que cambia el estado, estado final). Su
+# `eliminar` existe solo como compensación del rollback Mongo+Redis y no se
+# ofrece como baja en el ABM.
+_CIERRES = {"incidente": ("cambiar_estado", "cerrado")}
+
 
 @dataclass
 class Capacidades:
@@ -22,6 +29,7 @@ class Capacidades:
     modificar: str | None = None
     baja: str | None = None
     buscar: str | None = None
+    cierre: tuple[str, str] | None = None  # (método, estado final) en lugar de baja
 
     @property
     def es_abm(self) -> bool:
@@ -82,6 +90,10 @@ def detectar(instancia) -> Capacidades:
     m = _tiene(instancia, "buscar")
     if m is not None and _recibe_un_id(m):
         cap.buscar = "buscar"
+    nombre_clase = instancia.__name__ if isinstance(instancia, type) else type(instancia).__name__
+    cierre = _CIERRES.get(nombre_clase.removesuffix("Service").lower())
+    if cierre and _tiene(instancia, cierre[0]) is not None:
+        cap.cierre, cap.baja = cierre, None
     return cap
 
 

@@ -549,6 +549,11 @@ async def pagina_alertas() -> None:
     await refrescar()
 
 
+def _etiqueta_corta(valor) -> str:
+    texto = str(valor)
+    return "…" + texto[-6:] if len(texto) > 12 else texto
+
+
 def _entidades_abm() -> dict[str, abm.Capacidades]:
     """Services con listado, detectados sobre la clase (sin conectarse a los motores)."""
     detectadas = {n: abm.detectar(_reg().clase(n)) for n in _reg().nombres()}
@@ -575,6 +580,7 @@ def pagina_abm(entidad: str = "") -> None:
             b_nuevo = ui.button("Nuevo", icon="add", color="positive")
             b_editar = ui.button("Editar", icon="edit")
             b_baja = ui.button("Dar de baja", icon="delete", color="negative")
+            b_cerrar = ui.button("Cerrar", icon="check_circle", color="positive")
             b_ficha = ui.button("Ver ficha del envío", icon="description", color="secondary")
             b_mas = ui.button("Más operaciones de esta entidad", icon="tune", color="secondary").props("flat")
         resumen = ui.label("Elegí una entidad.").classes("text-sm text-grey")
@@ -586,12 +592,19 @@ def pagina_abm(entidad: str = "") -> None:
     def servicio():
         return _reg().obtener(sel.value)
 
+    def _ya_cerrado() -> bool:
+        """El registro seleccionado ya está en el estado final del cierre."""
+        if estado["fila"] is None or sel.value not in entidades or not cap().cierre:
+            return False
+        return getattr(estado["objetos"][estado["fila"]], "estado", None) == cap().cierre[1]
+
     def actualizar_botones() -> None:
         hay = sel.value in entidades
         c = cap() if hay else None
         b_nuevo.set_visibility(bool(c and c.alta))
         b_editar.set_visibility(bool(c and c.modificar))
         b_baja.set_visibility(bool(c and c.baja))
+        b_cerrar.set_visibility(bool(c and c.cierre))
         b_mas.set_visibility(hay)
         b_ficha.set_visibility(sel.value == "envio")
         entrada_buscar.set_visibility(bool(c and c.buscar))
@@ -599,6 +612,7 @@ def pagina_abm(entidad: str = "") -> None:
         con_fila = estado["fila"] is not None
         b_editar.set_enabled(con_fila)
         b_baja.set_enabled(con_fila)
+        b_cerrar.set_enabled(con_fila and not _ya_cerrado())
         b_ficha.set_enabled(con_fila)
         if c and c.baja:
             b_baja.set_text("Dar de baja" if c.baja == "dar_baja" else "Eliminar")
@@ -729,7 +743,24 @@ def pagina_abm(entidad: str = "") -> None:
             ui.notify("Hecho.", type="positive")
             await cargar()
 
+    async def pedir_cierre() -> None:
+        c = cap()
+        metodo, estado_final = c.cierre
+        obj = estado["objetos"][estado["fila"]]
+        pk = abm.clave_primaria(type(obj))
+        valor = getattr(obj, pk)
+        if not await _confirmar(
+            f"¿Cerrar el registro {pk} = {_etiqueta_corta(valor)}?",
+            f"Pasa a estado '{estado_final}'. No se borra: queda en el historial.", peligro=False,
+        ):
+            return
+        ok, _ = await _llamar(getattr(servicio(), metodo), valor, estado_final)
+        if ok:
+            ui.notify("Cerrado.", type="positive")
+            await cargar()
+
     sel.on_value_change(al_elegir_entidad)
+    b_cerrar.on_click(pedir_cierre)
     boton_buscar.on_click(buscar)
     entrada_buscar.on("keydown.enter", buscar)
     b_nuevo.on_click(lambda: abrir_formulario("alta"))
@@ -1210,4 +1241,11 @@ def pagina_mapa() -> None:
 def iniciar(puerto: int = 8090) -> None:
     os.makedirs(_DIR_SALIDA, exist_ok=True)
     app.add_static_files("/mapas", os.path.abspath(_DIR_SALIDA))
-    ui.run(title="Persistencia Políglota", port=puerto, reload=False, show=True)
+    # Solo la propia máquina por defecto: la UI puede dar de baja datos y hasta
+    # detener contenedores de Docker, y no tiene autenticación. Para abrirla
+    # desde otro equipo hay que pedirlo a propósito con UI_HOST=0.0.0.0.
+    host = os.environ.get("UI_HOST", "127.0.0.1")
+    if host != "127.0.0.1":
+        logger.warning("UI escuchando en %s: cualquiera con acceso a la red puede operar el sistema", host)
+        print(f"ATENCIÓN: la UI escucha en {host} y no tiene autenticación; cualquiera en tu red puede usarla.")
+    ui.run(title="Persistencia Políglota", host=host, port=puerto, reload=False, show=True)

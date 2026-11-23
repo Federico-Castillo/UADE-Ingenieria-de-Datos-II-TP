@@ -80,3 +80,22 @@ def test_texto_inicial_fechas_y_none():
     assert abm.texto_inicial(datetime(2026, 1, 2, 3, 4, 5, 999)) == "2026-01-02 03:04:05"
     assert abm.texto_inicial(date(2026, 1, 2)) == "2026-01-02"
     assert r.convertir(abm.texto_inicial(datetime(2026, 1, 2, 3, 4)), r.Campo("f", "datetime", True)) == datetime(2026, 1, 2, 3, 4)
+
+
+# ---------- el incidente se cierra, no se borra ----------
+
+def test_incidente_se_cierra_en_vez_de_darse_de_baja():
+    from app.services.incidente_service import IncidenteService
+
+    cap = abm.detectar(IncidenteService)
+    assert cap.es_abm and cap.alta == "registrar"
+    assert cap.baja is None                      # su `eliminar` es solo la compensación del rollback
+    assert cap.cierre == ("cambiar_estado", "cerrado")
+
+
+def test_otras_entidades_conservan_su_baja_y_no_tienen_cierre():
+    from app.services.cliente_service import ClienteService
+    from app.services.vehiculo_service import VehiculoService
+
+    assert abm.detectar(ClienteService).baja == "dar_baja" and abm.detectar(ClienteService).cierre is None
+    assert abm.detectar(VehiculoService).baja == "eliminar" and abm.detectar(VehiculoService).cierre is None

@@ -85,6 +85,11 @@ Alerta). No queda nada como "próximamente" en el menú de la consola.
 python main_nicegui.py        # http://localhost:8090
 ```
 
+**Seguridad.** La UI no tiene autenticación y puede dar de baja datos y hasta
+detener contenedores de Docker, por eso escucha **solo en `127.0.0.1`** (la propia
+máquina). Para abrirla desde otro equipo hay que pedirlo a propósito
+(`UI_HOST=0.0.0.0 python main_nicegui.py`) y la app lo avisa en pantalla y en el log.
+
 Un encabezado común a todas las pantallas muestra una insignia verde/roja por
 motor (se actualiza cada 3 segundos). Al arrancar, `main_nicegui.py` chequea
 los 5 motores (login/ping real, con timeout) y, si alguno no responde, lo
@@ -121,6 +126,9 @@ método nuevo lo expone solo. Sobre esa base:
 - El ABM detecta sus botones por convención de nombres y firmas
   (`app/ui/abm.py`): una entidad sin `modificar` no muestra "Editar", una sin
   baja no muestra "Baja" (por ejemplo, la factura es un documento contable).
+  Los incidentes no se borran: su botón es **Cerrar** (pasan a estado
+  `cerrado` y quedan en el historial); el `eliminar` del Service existe solo
+  como compensación del rollback.
 
 Limitación conocida: las entidades sin un `listar` simple (pagos, lecturas de
 sensores, mensajes, alertas, tramos...) no tienen tabla en `/abm`; se operan
