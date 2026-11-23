@@ -3,6 +3,7 @@ describe qué parámetros pide cada método, sin escribir una pantalla por
 entidad. Este módulo no importa NiceGUI, así que se puede testear solo."""
 import dataclasses
 import inspect
+import json
 import types
 import typing
 from dataclasses import dataclass, field
@@ -22,6 +23,7 @@ class Campo:
     requerido: bool
     default: object = None
     nota: str = ""  # ej. "formato AAAA-MM-DD HH:MM"
+    subtipo: str = "str"  # solo para tipo "lista": tipo de cada elemento
 
 
 @dataclass
@@ -37,7 +39,12 @@ class Parametro:
         return self.clase is not None
 
 
-_NOTAS = {"datetime": "AAAA-MM-DD HH:MM[:SS]", "date": "AAAA-MM-DD"}
+_NOTAS = {
+    "datetime": "AAAA-MM-DD HH:MM[:SS]",
+    "date": "AAAA-MM-DD",
+    "lista": "valores separados por coma",
+    "json": 'JSON, ej. {"lat": -34.6, "lon": -58.4}',
+}
 
 
 def _desenvolver_optional(anotacion):
@@ -52,7 +59,19 @@ def _desenvolver_optional(anotacion):
 
 def _tipo_de(anotacion) -> str:
     base, _ = _desenvolver_optional(anotacion)
+    origen = typing.get_origin(base) or base
+    if origen is list:
+        return "lista"
+    if origen is dict:
+        return "json"
     return _TIPOS_SIMPLES.get(base, "str")
+
+
+def _subtipo_de(anotacion) -> str:
+    """Tipo de los elementos de un `list[X]` (str si no se puede saber)."""
+    base, _ = _desenvolver_optional(anotacion)
+    args = typing.get_args(base)
+    return _TIPOS_SIMPLES.get(args[0], "str") if args else "str"
 
 
 def _es_dataclass(anotacion) -> bool:
@@ -67,9 +86,17 @@ def campos_de_dataclass(clase: type) -> list[Campo]:
         anotacion = hints.get(f.name, str)
         _, es_optional = _desenvolver_optional(anotacion)
         tiene_default = f.default is not dataclasses.MISSING or f.default_factory is not dataclasses.MISSING
-        default = None if f.default is dataclasses.MISSING else f.default
+        if f.default is not dataclasses.MISSING:
+            default = f.default
+        elif f.default_factory is not dataclasses.MISSING:
+            default = f.default_factory()
+        else:
+            default = None
         tipo = _tipo_de(anotacion)
-        campos.append(Campo(f.name, tipo, requerido=not (tiene_default or es_optional), default=default, nota=_NOTAS.get(tipo, "")))
+        campos.append(Campo(
+            f.name, tipo, requerido=not (tiene_default or es_optional), default=default,
+            nota=_NOTAS.get(tipo, ""), subtipo=_subtipo_de(anotacion),
+        ))
     return campos
 
 
@@ -93,7 +120,8 @@ def parametros_de(metodo) -> list[Parametro]:
         resultado.append(Parametro(
             nombre,
             campo=Campo(nombre, tipo, requerido=not (tiene_default or es_optional),
-                        default=p.default if tiene_default else None, nota=_NOTAS.get(tipo, "")),
+                        default=p.default if tiene_default else None, nota=_NOTAS.get(tipo, ""),
+                        subtipo=_subtipo_de(anotacion)),
         ))
     return resultado
 
@@ -113,9 +141,17 @@ def convertir(texto, campo: Campo):
     if texto is None or (isinstance(texto, str) and not texto.strip()):
         if campo.requerido:
             raise ValueError(f"'{campo.nombre}' es obligatorio.")
-        return campo.default
+        return campo.default.copy() if isinstance(campo.default, (list, dict)) else campo.default
     texto = texto.strip() if isinstance(texto, str) else texto
     try:
+        if campo.tipo == "lista":
+            sub = Campo(campo.nombre, campo.subtipo, requerido=True)
+            return [convertir(x, sub) for x in texto.split(",") if x.strip()]
+        if campo.tipo == "json":
+            valor = json.loads(texto)
+            if not isinstance(valor, dict):
+                raise ValueError
+            return valor
         if campo.tipo == "int":
             return int(texto)
         if campo.tipo == "float":
@@ -126,7 +162,7 @@ def convertir(texto, campo: Campo):
             return datetime.fromisoformat(texto)
         if campo.tipo == "date":
             return date.fromisoformat(texto)
-    except (ValueError, ArithmeticError):
+    except (ValueError, ArithmeticError):  # json.JSONDecodeError es un ValueError
         esperado = campo.nota or campo.tipo
         raise ValueError(f"'{campo.nombre}': valor inválido ({esperado}).") from None
     return texto

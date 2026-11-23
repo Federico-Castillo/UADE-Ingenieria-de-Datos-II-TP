@@ -89,3 +89,49 @@ def test_a_filas():
     assert r.a_filas([{"pais": "AR", "cantidad": 2}]) == [{"pais": "AR", "cantidad": 2}]
     assert r.a_filas(None) is None
     assert r.a_filas([1, 2]) == [{"valor": 1}, {"valor": 2}]
+
+
+from dataclasses import dataclass, field  # noqa: E402
+
+
+@dataclass
+class _ConColecciones:
+    nombre: str
+    integrantes: list[int] = field(default_factory=list)
+    etiquetas: list[str] = field(default_factory=list)
+    ubicacion: dict | None = None
+
+
+class _FalsoColecciones:
+    def crear(self, obj: _ConColecciones): ...
+    def agregar(self, ids: list[int]): ...
+
+
+def test_lista_y_dict_en_dataclass():
+    params = r.parametros_de(_FalsoColecciones().crear)
+    campos = {c.nombre: c for c in params[0].campos}
+    assert campos["integrantes"].tipo == "lista" and campos["integrantes"].subtipo == "int"
+    assert campos["ubicacion"].tipo == "json"
+
+    kwargs = r.construir_argumentos(params, {"obj": {
+        "nombre": "G", "integrantes": "15, 16,17", "etiquetas": "a,b", "ubicacion": '{"lat": -34.6}'}})
+    o = kwargs["obj"]
+    assert o.integrantes == [15, 16, 17] and o.etiquetas == ["a", "b"] and o.ubicacion == {"lat": -34.6}
+
+
+def test_colecciones_vacias_y_errores():
+    params = r.parametros_de(_FalsoColecciones().crear)
+    o = r.construir_argumentos(params, {"obj": {"nombre": "G", "integrantes": "", "etiquetas": "", "ubicacion": ""}})["obj"]
+    assert o.integrantes == [] and o.ubicacion is None
+    with pytest.raises(ValueError, match="inválido"):
+        r.construir_argumentos(params, {"obj": {"nombre": "G", "integrantes": "1,x", "ubicacion": ""}})
+    with pytest.raises(ValueError, match="inválido"):
+        r.construir_argumentos(params, {"obj": {"nombre": "G", "integrantes": "", "ubicacion": "no es json"}})
+    with pytest.raises(ValueError, match="inválido"):
+        r.construir_argumentos(params, {"obj": {"nombre": "G", "integrantes": "", "ubicacion": "[1,2]"}})
+
+
+def test_parametro_lista_simple_requerido():
+    (p,) = r.parametros_de(_FalsoColecciones().agregar)
+    assert p.campo.tipo == "lista" and p.campo.requerido
+    assert r.convertir("1,2", p.campo) == [1, 2]
