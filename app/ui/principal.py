@@ -7,6 +7,7 @@ Pantallas:
              solo desde la firma (ABMs, consultas, procesos... todo).
   /reportes  Todos los reportes operativos y analíticos, con gráficos.
   /alertas   Alertas activas con actualización automática y resolución.
+  /red       Grafo de Neo4j: red cliente–operador y ruta de un envío.
   /mapa      Recorrido GPS de un contenedor (Leaflet vía folium).
 """
 import logging
@@ -18,7 +19,7 @@ from nicegui import app, run, ui
 from app.core.exceptions import AppError
 from app.services.mapa_service import _DIR_SALIDA
 from app.services.reporte_operativo_service import ReporteOperativoService
-from app.ui import abm, reflexion
+from app.ui import abm, grafos, reflexion
 from app.ui.registro import RegistroServices, etiqueta
 
 logger = logging.getLogger(__name__)
@@ -40,6 +41,7 @@ def _encabezado(titulo: str) -> None:
         ui.link("Explorador", "/").classes("text-white")
         ui.link("Reportes", "/reportes").classes("text-white")
         ui.link("Alertas", "/alertas").classes("text-white")
+        ui.link("Red", "/red").classes("text-white")
         ui.link("Mapa", "/mapa").classes("text-white")
         ui.space()
         ui.label(titulo)
@@ -56,6 +58,20 @@ async def _llamar(funcion, *args, **kwargs):
         logger.exception("Error inesperado en la UI")
         ui.notify("Error inesperado. Revisá logs/app.log.", type="negative")
     return False, None
+
+
+async def _confirmar(mensaje: str, detalle: str = "", *, peligro: bool = True) -> bool:
+    """Diálogo Cancelar / Confirmar. Devuelve True solo si se confirmó."""
+    with ui.dialog() as dialogo, ui.card().classes("min-w-[24rem]"):
+        ui.label(mensaje).classes("text-base")
+        if detalle:
+            ui.label(detalle).classes("text-sm text-grey")
+        with ui.row().classes("justify-end w-full"):
+            ui.button("Cancelar", on_click=lambda: dialogo.submit(False)).props("flat")
+            ui.button("Confirmar", color="negative" if peligro else "primary", on_click=lambda: dialogo.submit(True))
+    resultado = await dialogo
+    dialogo.delete()
+    return bool(resultado)
 
 
 def _mostrar_resultado(contenedor, resultado) -> None:
@@ -107,6 +123,15 @@ def _widget_campo(campo, inicial=None, *, solo_lectura=False, valor_bool=None):
     etiqueta_campo = campo.nombre + (" *" if campo.requerido else "")
     if campo.tipo == "bool":
         return ui.checkbox(etiqueta_campo, value=bool(campo.default if valor_bool is None else valor_bool))
+    if campo.opciones:
+        opciones = list(campo.opciones)
+        valor = inicial if inicial not in (None, "") else (campo.default if campo.default in opciones else None)
+        if valor is not None and valor not in opciones:
+            opciones.append(valor)  # valor histórico que ya no está en la lista
+        w = ui.select(opciones, label=etiqueta_campo, value=valor, clearable=not campo.requerido)
+        if solo_lectura:
+            w.props("readonly")
+        return w.classes("w-72")
     if inicial is None:
         sin_valor = campo.default is None or campo.tipo in ("lista", "json")
         inicial = "" if sin_valor else str(campo.default)
@@ -138,6 +163,7 @@ def pagina_explorador(entidad: str = "") -> None:
                 {n: etiqueta(n) for n in _reg().nombres()}, label="Entidad / service", with_input=True
             ).classes("w-72")
             sel_metodo = ui.select([], label="Operación").classes("w-72")
+        ayuda = ui.label("").classes("text-sm text-grey")
         zona_form = ui.column().classes("gap-1")
         boton = ui.button("Ejecutar", icon="play_arrow")
         boton.set_visibility(False)
@@ -155,14 +181,19 @@ def pagina_explorador(entidad: str = "") -> None:
             logger.exception("No se pudo crear el service %s", e.value)
             ui.notify(f"No se pudo iniciar el service: {ex}", type="negative", multi_line=True)
             return
-        sel_metodo.set_options(reflexion.metodos_publicos(instancia), value=None)
+        ayuda.set_text("")
+        sel_metodo.set_options(
+            {m: reflexion.nombre_legible(m) for m in reflexion.metodos_publicos(instancia)}, value=None)
 
     def al_elegir_metodo(e) -> None:
         zona_resultado.clear()
         if not e.value or not sel_service.value:
+            ayuda.set_text("")
             boton.set_visibility(False)
             return
         metodo = getattr(_reg().obtener(sel_service.value), e.value)
+        descripcion = reflexion.descripcion_de(metodo)
+        ayuda.set_text(f"{e.value}()" + (f" — {descripcion}" if descripcion else ""))
         estado["parametros"] = reflexion.parametros_de(metodo)
         estado["widgets"] = _construir_formulario(zona_form, estado["parametros"])
         boton.set_visibility(True)
@@ -174,6 +205,13 @@ def pagina_explorador(entidad: str = "") -> None:
         except ValueError as ex:
             ui.notify(str(ex), type="warning")
             return
+        riesgo = abm.riesgo_de(sel_metodo.value)
+        if riesgo:
+            detalle = ", ".join(f"{k}={v}" for k, v in kwargs.items())
+            mensaje = ("Esta operación borra o da de baja datos." if riesgo == "baja"
+                       else "Este proceso modifica datos en bloque.")
+            if not await _confirmar(f"{mensaje} ¿Ejecutar {reflexion.nombre_legible(sel_metodo.value).lower()}?", detalle):
+                return
         ok, resultado = await _llamar(metodo, **kwargs)
         if ok:
             ui.notify("Listo", type="positive")
@@ -360,6 +398,19 @@ async def pagina_alertas() -> None:
             resumen = ui.label("").classes("text-lg")
             auto = ui.checkbox("Actualizar cada 5 s", value=True)
             ui.button("Actualizar ahora", icon="refresh", on_click=lambda: refrescar())
+        with ui.expansion("Simulador de sensores IoT (para la demo)", icon="sensors").classes("w-full"):
+            ui.label("Genera lecturas sintéticas (mismo generador que scripts/simulador_iot.py) y las registra: "
+                     "si violan una regla se dispara Cassandra → Mongo (incidente) → Redis (alerta).").classes("text-sm text-grey")
+            with ui.row().classes("items-end gap-4"):
+                sel_sensor = ui.select({}, label="Sensor", with_input=True).classes("w-96")
+                with ui.column().classes("gap-0"):
+                    etiqueta_prob = ui.label("")
+                    prob = ui.slider(min=0, max=1, step=0.1, value=1.0).classes("w-48")
+                    etiqueta_prob.bind_text_from(prob, "value", lambda v: f"Probabilidad de anomalía: {v:.0%}")
+                b_una = ui.button("Enviar lectura del sensor", icon="send")
+                b_tick = ui.button("Tick (todos los sensores)", icon="bolt", color="secondary")
+                continuo = ui.switch("Continuo cada 5 s")
+            bitacora = ui.log(max_lines=60).classes("w-full h-40")
         selector = ui.select([], label="Alerta a resolver").classes("w-96")
         boton = ui.button("Marcar como resuelta", icon="check", color="positive")
         zona = ui.column().classes("w-full")
@@ -386,7 +437,48 @@ async def pagina_alertas() -> None:
             await refrescar()
 
     boton.on_click(resolver)
-    ui.timer(5.0, lambda: refrescar() if auto.value else None)
+
+    # --- Simulador de sensores (reutiliza el generador del script) ---
+    try:
+        servicio_sensor = _reg().obtener("sensor_iot")
+        servicio_lectura = _reg().obtener("lectura_sensor")
+        sensores = await run.io_bound(servicio_sensor.listar)
+    except Exception as ex:
+        logger.exception("No se pudo preparar el simulador")
+        sensores = []
+        bitacora.push(f"Simulador no disponible: {ex}")
+    sel_sensor.set_options({s.id_sensor: f"sensor {s.id_sensor} · {s.tipo} · contenedor {s.id_contenedor}" for s in sensores})
+    por_id = {s.id_sensor: s for s in sensores}
+
+    async def simular(lista) -> None:
+        from scripts.simulador_iot import _resumen, generar_lectura
+        for sensor in lista:
+            lectura, es_anomalia = generar_lectura(sensor, prob.value)
+            try:
+                creada = await run.io_bound(servicio_lectura.registrar_lectura, lectura)
+            except (AppError, ValueError) as e:
+                bitacora.push(f"sensor {sensor.id_sensor}: ERROR {e}")
+                continue
+            marca = "  *** ANOMALÍA ***" if es_anomalia else ""
+            bitacora.push(f"sensor {sensor.id_sensor} ({sensor.tipo}){marca} -> {_resumen(creada)}")
+        await refrescar()
+
+    async def simular_una() -> None:
+        if sel_sensor.value not in por_id:
+            ui.notify("Elegí un sensor.", type="warning")
+            return
+        await simular([por_id[sel_sensor.value]])
+
+    async def simular_tick() -> None:
+        if not por_id:
+            ui.notify("No hay sensores dados de alta.", type="warning")
+            return
+        await simular(list(por_id.values()))
+
+    b_una.on_click(simular_una)
+    b_tick.on_click(simular_tick)
+    ui.timer(5.0, lambda: refrescar() if auto.value and not continuo.value else None)
+    ui.timer(5.0, lambda: simular_tick() if continuo.value else None)
     await refrescar()
 
 
@@ -550,30 +642,20 @@ def pagina_abm(entidad: str = "") -> None:
         dialogo.on("hide", dialogo.delete)
         dialogo.open()
 
-    def pedir_baja() -> None:
+    async def pedir_baja() -> None:
         c = cap()
         srv = servicio()
         obj = estado["objetos"][estado["fila"]]
         nombre_param = abm.nombre_param_baja(srv, c)
         valor = getattr(obj, nombre_param, None)
         accion = "dar de baja" if c.baja == "dar_baja" else "eliminar"
-        with ui.dialog() as dialogo, ui.card():
-            ui.label(f"¿Seguro que querés {accion} el registro {nombre_param} = {valor}?").classes("text-base")
-            if c.baja == "eliminar":
-                ui.label("El borrado es definitivo.").classes("text-sm text-negative")
-            with ui.row().classes("justify-end w-full"):
-                ui.button("Cancelar", on_click=dialogo.close).props("flat")
-
-                async def confirmar() -> None:
-                    ok, _ = await _llamar(getattr(srv, c.baja), valor)
-                    if ok:
-                        ui.notify("Hecho.", type="positive")
-                        dialogo.close()
-                        await cargar()
-
-                ui.button("Confirmar", color="negative", on_click=confirmar)
-        dialogo.on("hide", dialogo.delete)
-        dialogo.open()
+        detalle = "El borrado es definitivo." if c.baja == "eliminar" else ""
+        if not await _confirmar(f"¿Seguro que querés {accion} el registro {nombre_param} = {valor}?", detalle):
+            return
+        ok, _ = await _llamar(getattr(srv, c.baja), valor)
+        if ok:
+            ui.notify("Hecho.", type="positive")
+            await cargar()
 
     sel.on_value_change(al_elegir_entidad)
     boton_buscar.on_click(buscar)
@@ -585,6 +667,62 @@ def pagina_abm(entidad: str = "") -> None:
     actualizar_botones()
     if sel.value in entidades:
         ui.timer(0.1, al_elegir_entidad, once=True)
+
+
+@ui.page("/red")
+async def pagina_red() -> None:
+    _encabezado("Red logística (Neo4j)")
+    try:
+        servicio = _reg().obtener("tramo")
+    except Exception as ex:
+        logger.exception("No se pudo crear TramoService")
+        ui.notify(f"No se pudo conectar a los motores: {ex}", type="negative", multi_line=True)
+        return
+
+    with ui.tabs().classes("w-full") as tabs:
+        t_red = ui.tab("Red cliente–operador")
+        t_ruta = ui.tab("Ruta de un envío")
+    with ui.tab_panels(tabs, value=t_red).classes("w-full"):
+        with ui.tab_panel(t_red):
+            zona_red = ui.column().classes("w-full gap-2")
+        with ui.tab_panel(t_ruta):
+            with ui.row().classes("items-end gap-4"):
+                entrada = ui.input("ID de envío").classes("w-40")
+                ui.button("Ver ruta", icon="alt_route", on_click=lambda: ver_ruta())
+            zona_ruta = ui.column().classes("w-full gap-2")
+
+    async def cargar_red() -> None:
+        zona_red.clear()
+        ok, filas = await _llamar(servicio.red_relaciones)
+        if not ok:
+            return
+        with zona_red:
+            if not filas:
+                ui.label("Todavía no hay relaciones cliente–operador (hacen falta tramos registrados).")
+                return
+            ui.echart(grafos.opciones_red(filas)).classes("w-full h-[32rem]")
+            ui.label("Cada línea une un cliente con un operador que transportó alguno de sus envíos. "
+                     "Los nodos se pueden arrastrar.").classes("text-sm text-grey")
+            _tabla_simple("Relaciones", filas)
+
+    async def ver_ruta() -> None:
+        zona_ruta.clear()
+        try:
+            id_envio = int(entrada.value)
+        except (TypeError, ValueError):
+            ui.notify("Ingresá un ID de envío numérico.", type="warning")
+            return
+        ok, tramos = await _llamar(servicio.ruta_completa, id_envio)
+        if not ok:
+            return
+        with zona_ruta:
+            if not tramos:
+                ui.label(f"El envío {id_envio} no tiene tramos registrados.")
+                return
+            ui.echart(grafos.opciones_ruta(tramos, id_envio)).classes("w-full h-72")
+            _tabla_simple("Tramos", tramos)
+
+    ui.timer(0.1, cargar_red, once=True)
 
 
 @ui.page("/mapa")

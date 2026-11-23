@@ -46,6 +46,20 @@ def _recibe_un_id(metodo) -> bool:
     return len(params) == 1 and not params[0].es_objeto
 
 
+_PREFIJOS_BAJA = ("dar_baja", "eliminar", "quitar", "cerrar")
+_PROCESOS_EN_BLOQUE = {"ejecutar_cierre_mensual", "marcar_inactivos", "procesar_pendientes", "calcular_predicciones"}
+
+
+def riesgo_de(metodo: str) -> str | None:
+    """'baja' si el método borra o da de baja, 'proceso' si modifica datos en
+    bloque, None si es inofensivo. La UI pide confirmación en los dos casos."""
+    if metodo.startswith(_PREFIJOS_BAJA):
+        return "baja"
+    if metodo in _PROCESOS_EN_BLOQUE:
+        return "proceso"
+    return None
+
+
 def detectar(instancia) -> Capacidades:
     cap = Capacidades()
     listar = _tiene(instancia, "listar")

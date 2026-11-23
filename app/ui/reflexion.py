@@ -4,11 +4,14 @@ entidad. Este módulo no importa NiceGUI, así que se puede testear solo."""
 import dataclasses
 import inspect
 import json
+import sys
 import types
 import typing
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
+
+from app.ui.opciones import opciones_de
 
 _VACIO = inspect.Parameter.empty
 
@@ -24,6 +27,7 @@ class Campo:
     default: object = None
     nota: str = ""  # ej. "formato AAAA-MM-DD HH:MM"
     subtipo: str = "str"  # solo para tipo "lista": tipo de cada elemento
+    opciones: list[str] | None = None  # valores fijos -> desplegable en la UI
 
 
 @dataclass
@@ -79,7 +83,7 @@ def _es_dataclass(anotacion) -> bool:
     return inspect.isclass(base) and dataclasses.is_dataclass(base)
 
 
-def campos_de_dataclass(clase: type) -> list[Campo]:
+def campos_de_dataclass(clase: type, modulo=None) -> list[Campo]:
     hints = typing.get_type_hints(clase)
     campos = []
     for f in dataclasses.fields(clase):
@@ -96,6 +100,7 @@ def campos_de_dataclass(clase: type) -> list[Campo]:
         campos.append(Campo(
             f.name, tipo, requerido=not (tiene_default or es_optional), default=default,
             nota=_NOTAS.get(tipo, ""), subtipo=_subtipo_de(anotacion),
+            opciones=opciones_de(f.name, clase=clase, modulo=modulo) if tipo == "str" else None,
         ))
     return campos
 
@@ -107,6 +112,7 @@ def parametros_de(metodo) -> list[Parametro]:
         hints = typing.get_type_hints(metodo)
     except Exception:
         hints = {}
+    modulo = sys.modules.get(getattr(metodo, "__module__", None))
     resultado = []
     for nombre, p in firma.parameters.items():
         if nombre == "self":  # método tomado de la clase, sin instanciar
@@ -114,7 +120,7 @@ def parametros_de(metodo) -> list[Parametro]:
         anotacion = hints.get(nombre, str)
         if _es_dataclass(anotacion):
             clase, _ = _desenvolver_optional(anotacion)
-            resultado.append(Parametro(nombre, campos=campos_de_dataclass(clase), clase=clase))
+            resultado.append(Parametro(nombre, campos=campos_de_dataclass(clase, modulo), clase=clase))
             continue
         _, es_optional = _desenvolver_optional(anotacion)
         tipo = _tipo_de(anotacion)
@@ -123,9 +129,22 @@ def parametros_de(metodo) -> list[Parametro]:
             nombre,
             campo=Campo(nombre, tipo, requerido=not (tiene_default or es_optional),
                         default=p.default if tiene_default else None, nota=_NOTAS.get(tipo, ""),
-                        subtipo=_subtipo_de(anotacion)),
+                        subtipo=_subtipo_de(anotacion),
+                        opciones=opciones_de(nombre, modulo=modulo) if tipo == "str" else None),
         ))
     return resultado
+
+
+def nombre_legible(metodo: str) -> str:
+    """`listar_por_cliente` -> `Listar por cliente`."""
+    texto = metodo.replace("_", " ").strip()
+    return texto[:1].upper() + texto[1:]
+
+
+def descripcion_de(metodo) -> str:
+    """Primer párrafo del docstring del método, en una línea ('' si no tiene)."""
+    doc = inspect.getdoc(metodo) or ""
+    return " ".join(doc.split("\n\n")[0].split())
 
 
 def metodos_publicos(instancia) -> list[str]:
