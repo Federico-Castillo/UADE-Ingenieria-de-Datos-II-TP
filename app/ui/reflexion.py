@@ -109,6 +109,8 @@ def parametros_de(metodo) -> list[Parametro]:
         hints = {}
     resultado = []
     for nombre, p in firma.parameters.items():
+        if nombre == "self":  # método tomado de la clase, sin instanciar
+            continue
         anotacion = hints.get(nombre, str)
         if _es_dataclass(anotacion):
             clase, _ = _desenvolver_optional(anotacion)

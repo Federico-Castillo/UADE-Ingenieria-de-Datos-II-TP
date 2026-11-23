@@ -37,6 +37,9 @@ class RegistroServices:
     def nombres(self) -> list[str]:
         return list(self._clases)
 
+    def clase(self, nombre: str) -> type:
+        return self._clases[nombre]
+
     def obtener(self, nombre: str):
         if nombre not in self._instancias:
             self._instancias[nombre] = self._clases[nombre]()

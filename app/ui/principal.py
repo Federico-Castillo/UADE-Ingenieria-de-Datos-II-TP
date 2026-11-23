@@ -2,6 +2,7 @@
 services que la CLI: no hay lógica de negocio acá.
 
 Pantallas:
+  /abm       ABM de verdad: tabla + Nuevo / Editar / Baja por entidad.
   /          Explorador: elegís un service y un método; el formulario se arma
              solo desde la firma (ABMs, consultas, procesos... todo).
   /reportes  Todos los reportes operativos y analíticos, con gráficos.
@@ -17,7 +18,7 @@ from nicegui import app, run, ui
 from app.core.exceptions import AppError
 from app.services.mapa_service import _DIR_SALIDA
 from app.services.reporte_operativo_service import ReporteOperativoService
-from app.ui import reflexion
+from app.ui import abm, reflexion
 from app.ui.registro import RegistroServices, etiqueta
 
 logger = logging.getLogger(__name__)
@@ -35,6 +36,7 @@ def _reg() -> RegistroServices:
 def _encabezado(titulo: str) -> None:
     with ui.header().classes("items-center gap-4"):
         ui.label("Persistencia Políglota").classes("text-lg font-bold")
+        ui.link("ABM", "/abm").classes("text-white")
         ui.link("Explorador", "/").classes("text-white")
         ui.link("Reportes", "/reportes").classes("text-white")
         ui.link("Alertas", "/alertas").classes("text-white")
@@ -73,9 +75,13 @@ def _mostrar_resultado(contenedor, resultado) -> None:
         ui.table(columns=columnas, rows=filas, row_key="_n", pagination=15).classes("w-full")
 
 
-def _construir_formulario(contenedor, parametros) -> dict:
-    """Dibuja los inputs y devuelve {param: widget} / {param: {campo: widget}}."""
+def _construir_formulario(contenedor, parametros, *, ocultar=(), iniciales=None, solo_lectura=()) -> dict:
+    """Dibuja los inputs y devuelve {param: widget} / {param: {campo: widget}}.
+    `ocultar`: campos que no se piden (ej. la PK en un alta). `iniciales`:
+    {param: objeto} para precargar un formulario de edición. `solo_lectura`:
+    campos visibles pero no editables (ej. la PK al editar)."""
     widgets: dict = {}
+    iniciales = iniciales or {}
     contenedor.clear()
     with contenedor:
         if not parametros:
@@ -83,20 +89,34 @@ def _construir_formulario(contenedor, parametros) -> dict:
         for p in parametros:
             if p.es_objeto:
                 ui.label(etiqueta(p.nombre)).classes("font-bold mt-2")
-                widgets[p.nombre] = {c.nombre: _widget_campo(c) for c in p.campos}
+                origen = iniciales.get(p.nombre)
+                widgets[p.nombre] = {
+                    c.nombre: _widget_campo(
+                        c, abm.texto_inicial(getattr(origen, c.nombre, None)) if origen is not None else None,
+                        solo_lectura=c.nombre in solo_lectura,
+                        valor_bool=getattr(origen, c.nombre, None) if origen is not None else None,
+                    )
+                    for c in p.campos if c.nombre not in ocultar
+                }
             else:
                 widgets[p.nombre] = _widget_campo(p.campo)
     return widgets
 
 
-def _widget_campo(campo):
+def _widget_campo(campo, inicial=None, *, solo_lectura=False, valor_bool=None):
     etiqueta_campo = campo.nombre + (" *" if campo.requerido else "")
     if campo.tipo == "bool":
-        return ui.checkbox(etiqueta_campo, value=bool(campo.default))
-    sin_valor = campo.default is None or campo.tipo in ("lista", "json")
-    w = ui.input(etiqueta_campo, value="" if sin_valor else str(campo.default))
+        return ui.checkbox(etiqueta_campo, value=bool(campo.default if valor_bool is None else valor_bool))
+    if inicial is None:
+        sin_valor = campo.default is None or campo.tipo in ("lista", "json")
+        inicial = "" if sin_valor else str(campo.default)
+    w = ui.input(etiqueta_campo, value=inicial)
     if campo.nota:
         w.props(f'placeholder="{campo.nota}"')
+    if "password" in campo.nombre.lower():
+        w.props("type=password")
+    if solo_lectura:
+        w.props("readonly")
     return w.classes("w-72")
 
 
@@ -108,7 +128,7 @@ def _leer_valores(widgets: dict) -> dict:
 
 
 @ui.page("/")
-def pagina_explorador() -> None:
+def pagina_explorador(entidad: str = "") -> None:
     _encabezado("Explorador de services")
     estado = {"widgets": {}, "parametros": []}
 
@@ -162,6 +182,8 @@ def pagina_explorador() -> None:
     sel_service.on_value_change(al_elegir_service)
     sel_metodo.on_value_change(al_elegir_metodo)
     boton.on_click(ejecutar)
+    if entidad in _reg().nombres():
+        sel_service.set_value(entidad)
 
 
 def _barras(titulo: str, filas: list[dict], x: str, y: str) -> dict:
@@ -366,6 +388,203 @@ async def pagina_alertas() -> None:
     boton.on_click(resolver)
     ui.timer(5.0, lambda: refrescar() if auto.value else None)
     await refrescar()
+
+
+def _entidades_abm() -> dict[str, abm.Capacidades]:
+    """Services con listado, detectados sobre la clase (sin conectarse a los motores)."""
+    detectadas = {n: abm.detectar(_reg().clase(n)) for n in _reg().nombres()}
+    return {n: c for n, c in detectadas.items() if c.es_abm}
+
+
+@ui.page("/abm")
+def pagina_abm(entidad: str = "") -> None:
+    _encabezado("ABM de entidades")
+    entidades = _entidades_abm()
+    estado: dict = {"objetos": [], "fila": None}
+
+    with ui.column().classes("w-full p-4 gap-2"):
+        with ui.row().classes("items-end gap-4"):
+            sel = ui.select(
+                {n: etiqueta(n) for n in entidades}, label="Entidad", with_input=True,
+                value=entidad if entidad in entidades else None,
+            ).classes("w-72")
+            zona_filtros = ui.row().classes("items-end gap-4")
+            entrada_buscar = ui.input("Buscar texto").classes("w-56")
+            boton_buscar = ui.button(icon="search")
+            ui.button("Actualizar", icon="refresh", on_click=lambda: cargar())
+        with ui.row().classes("gap-2"):
+            b_nuevo = ui.button("Nuevo", icon="add", color="positive")
+            b_editar = ui.button("Editar", icon="edit")
+            b_baja = ui.button("Dar de baja", icon="delete", color="negative")
+            b_mas = ui.button("Más operaciones de esta entidad", icon="tune", color="secondary").props("flat")
+        resumen = ui.label("Elegí una entidad.").classes("text-sm text-grey")
+        zona_tabla = ui.column().classes("w-full")
+
+    def cap() -> abm.Capacidades:
+        return entidades[sel.value]
+
+    def servicio():
+        return _reg().obtener(sel.value)
+
+    def actualizar_botones() -> None:
+        hay = sel.value in entidades
+        c = cap() if hay else None
+        b_nuevo.set_visibility(bool(c and c.alta))
+        b_editar.set_visibility(bool(c and c.modificar))
+        b_baja.set_visibility(bool(c and c.baja))
+        b_mas.set_visibility(hay)
+        entrada_buscar.set_visibility(bool(c and c.buscar))
+        boton_buscar.set_visibility(bool(c and c.buscar))
+        con_fila = estado["fila"] is not None
+        b_editar.set_enabled(con_fila)
+        b_baja.set_enabled(con_fila)
+        if c and c.baja:
+            b_baja.set_text("Dar de baja" if c.baja == "dar_baja" else "Eliminar")
+
+    def seleccionar(filas: list[dict]) -> None:
+        estado["fila"] = int(filas[0]["_n"]) if filas else None
+        actualizar_botones()
+
+    def pintar(objetos) -> None:
+        estado["objetos"], estado["fila"] = list(objetos), None
+        zona_tabla.clear()
+        filas = reflexion.a_filas(estado["objetos"]) or []
+        with zona_tabla:
+            if not filas:
+                resumen.set_text("Sin registros.")
+            else:
+                resumen.set_text(f"{len(filas)} registro(s). Seleccioná una fila para editar o dar de baja.")
+                columnas = [{"name": k, "label": k, "field": k, "align": "left", "sortable": True} for k in filas[0]]
+                for i, f in enumerate(filas):
+                    f["_n"] = i
+                ui.table(
+                    columns=columnas, rows=filas, row_key="_n", selection="single", pagination=15,
+                    on_select=lambda e: seleccionar(e.selection),
+                ).classes("w-full")
+        actualizar_botones()
+
+    async def cargar() -> None:
+        if sel.value not in entidades:
+            return
+        try:
+            srv = servicio()
+        except Exception as ex:
+            logger.exception("No se pudo crear el service %s", sel.value)
+            ui.notify(f"No se pudo conectar a los motores: {ex}", type="negative", multi_line=True)
+            return
+        try:
+            kwargs = reflexion.construir_argumentos(
+                filtros["parametros"], _leer_valores(filtros["widgets"]))
+        except ValueError as ex:
+            ui.notify(str(ex), type="warning")
+            return
+        ok, objetos = await _llamar(getattr(srv, cap().listar), **kwargs)
+        if ok:
+            pintar(objetos)
+
+    async def buscar() -> None:
+        texto = (entrada_buscar.value or "").strip()
+        if not texto:
+            await cargar()
+            return
+        ok, objetos = await _llamar(getattr(servicio(), cap().buscar), texto)
+        if ok:
+            pintar(objetos)
+
+    filtros: dict = {"parametros": [], "widgets": {}}
+
+    async def al_elegir_entidad(_e=None) -> None:
+        estado["fila"] = None
+        zona_tabla.clear()
+        entrada_buscar.set_value("")
+        filtros["parametros"], filtros["widgets"] = [], {}
+        zona_filtros.clear()
+        actualizar_botones()
+        if sel.value not in entidades:
+            return
+        # Parámetros opcionales del listado (ej. solo_activos): se muestran como filtros.
+        clase = _reg().clase(sel.value)
+        filtros["parametros"] = reflexion.parametros_de(getattr(clase, cap().listar))
+        filtros["widgets"] = _construir_formulario(zona_filtros, filtros["parametros"])
+        if not filtros["parametros"]:
+            zona_filtros.clear()
+        await cargar()
+
+    def abrir_formulario(modo: str) -> None:
+        c = cap()
+        srv = servicio()
+        nombre_metodo = c.alta if modo == "alta" else c.modificar
+        metodo = getattr(srv, nombre_metodo)
+        parametros = reflexion.parametros_de(metodo)
+        clase = parametros[0].clase if parametros and parametros[0].es_objeto else None
+        pk = abm.clave_primaria(clase) if clase else None
+        iniciales = {}
+        if modo == "editar":
+            iniciales = {parametros[0].nombre: estado["objetos"][estado["fila"]]}
+        titulo = f"{'Nuevo' if modo == 'alta' else 'Editar'} — {etiqueta(sel.value)}"
+        with ui.dialog() as dialogo, ui.card().classes("min-w-[30rem]"):
+            ui.label(titulo).classes("text-lg font-bold")
+            zona = ui.column().classes("gap-1 max-h-[60vh] overflow-auto")
+            widgets = _construir_formulario(
+                zona, parametros,
+                ocultar={pk} if modo == "alta" and pk else (),
+                iniciales=iniciales,
+                solo_lectura={pk} if modo == "editar" and pk else (),
+            )
+            with ui.row().classes("justify-end w-full"):
+                ui.button("Cancelar", on_click=dialogo.close).props("flat")
+
+                async def guardar() -> None:
+                    try:
+                        kwargs = reflexion.construir_argumentos(parametros, _leer_valores(widgets))
+                    except ValueError as ex:
+                        ui.notify(str(ex), type="warning")
+                        return
+                    ok, _ = await _llamar(metodo, **kwargs)
+                    if ok:
+                        ui.notify("Guardado.", type="positive")
+                        dialogo.close()
+                        await cargar()
+
+                ui.button("Guardar", icon="save", on_click=guardar)
+        dialogo.on("hide", dialogo.delete)
+        dialogo.open()
+
+    def pedir_baja() -> None:
+        c = cap()
+        srv = servicio()
+        obj = estado["objetos"][estado["fila"]]
+        nombre_param = abm.nombre_param_baja(srv, c)
+        valor = getattr(obj, nombre_param, None)
+        accion = "dar de baja" if c.baja == "dar_baja" else "eliminar"
+        with ui.dialog() as dialogo, ui.card():
+            ui.label(f"¿Seguro que querés {accion} el registro {nombre_param} = {valor}?").classes("text-base")
+            if c.baja == "eliminar":
+                ui.label("El borrado es definitivo.").classes("text-sm text-negative")
+            with ui.row().classes("justify-end w-full"):
+                ui.button("Cancelar", on_click=dialogo.close).props("flat")
+
+                async def confirmar() -> None:
+                    ok, _ = await _llamar(getattr(srv, c.baja), valor)
+                    if ok:
+                        ui.notify("Hecho.", type="positive")
+                        dialogo.close()
+                        await cargar()
+
+                ui.button("Confirmar", color="negative", on_click=confirmar)
+        dialogo.on("hide", dialogo.delete)
+        dialogo.open()
+
+    sel.on_value_change(al_elegir_entidad)
+    boton_buscar.on_click(buscar)
+    entrada_buscar.on("keydown.enter", buscar)
+    b_nuevo.on_click(lambda: abrir_formulario("alta"))
+    b_editar.on_click(lambda: abrir_formulario("editar"))
+    b_baja.on_click(pedir_baja)
+    b_mas.on_click(lambda: ui.navigate.to(f"/?entidad={sel.value}"))
+    actualizar_botones()
+    if sel.value in entidades:
+        ui.timer(0.1, al_elegir_entidad, once=True)
 
 
 @ui.page("/mapa")
