@@ -12,6 +12,7 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from app.ui.opciones import opciones_de
+from app.ui.referencias import clave_primaria, servicio_referenciado
 
 _VACIO = inspect.Parameter.empty
 
@@ -28,6 +29,7 @@ class Campo:
     nota: str = ""  # ej. "formato AAAA-MM-DD HH:MM"
     subtipo: str = "str"  # solo para tipo "lista": tipo de cada elemento
     opciones: list[str] | None = None  # valores fijos -> desplegable en la UI
+    referencia: str | None = None  # clave foránea: nombre del service al que apunta
 
 
 @dataclass
@@ -85,6 +87,7 @@ def _es_dataclass(anotacion) -> bool:
 
 def campos_de_dataclass(clase: type, modulo=None) -> list[Campo]:
     hints = typing.get_type_hints(clase)
+    pk = clave_primaria(clase)
     campos = []
     for f in dataclasses.fields(clase):
         anotacion = hints.get(f.name, str)
@@ -101,6 +104,7 @@ def campos_de_dataclass(clase: type, modulo=None) -> list[Campo]:
             f.name, tipo, requerido=not (tiene_default or es_optional), default=default,
             nota=_NOTAS.get(tipo, ""), subtipo=_subtipo_de(anotacion),
             opciones=opciones_de(f.name, clase=clase, modulo=modulo) if tipo == "str" else None,
+            referencia=servicio_referenciado(f.name) if f.name != pk and tipo in ("int", "str") else None,
         ))
     return campos
 
@@ -130,7 +134,8 @@ def parametros_de(metodo) -> list[Parametro]:
             campo=Campo(nombre, tipo, requerido=not (tiene_default or es_optional),
                         default=p.default if tiene_default else None, nota=_NOTAS.get(tipo, ""),
                         subtipo=_subtipo_de(anotacion),
-                        opciones=opciones_de(nombre, modulo=modulo) if tipo == "str" else None),
+                        opciones=opciones_de(nombre, modulo=modulo) if tipo == "str" else None,
+                        referencia=servicio_referenciado(nombre) if tipo in ("int", "str") else None),
         ))
     return resultado
 

@@ -22,7 +22,7 @@ from nicegui import app, run, ui
 from app.core.exceptions import AppError
 from app.services.mapa_service import _DIR_SALIDA
 from app.services.reporte_operativo_service import ReporteOperativoService
-from app.ui import abm, grafos, reflexion, salud
+from app.ui import abm, grafos, referencias, reflexion, salud
 from app.ui.registro import RegistroServices, etiqueta
 
 logger = logging.getLogger(__name__)
@@ -78,6 +78,39 @@ async def _llamar(funcion, *args, **kwargs):
     return False, None
 
 
+_MAX_REFERENCIAS = 500
+
+
+async def _cargar_referencias(parametros) -> dict[str, list[tuple]]:
+    """Para cada clave foránea del formulario, la lista [(id, etiqueta)] del
+    service referenciado. Si no tiene un listado simple, o falla, ese campo
+    queda como texto libre (no se corta el formulario)."""
+    nombres = {
+        c.referencia
+        for p in parametros
+        for c in (p.campos if p.es_objeto else [p.campo])
+        if c.referencia
+    }
+
+    def cargar(nombre: str) -> list[tuple]:
+        cap = abm.detectar(_reg().clase(nombre))
+        if not cap.listar:
+            return []
+        objetos = getattr(_reg().obtener(nombre), cap.listar)()
+        return referencias.opciones_de_objetos(objetos[:_MAX_REFERENCIAS])
+
+    resultado: dict[str, list[tuple]] = {}
+    for nombre in sorted(nombres):
+        try:
+            opciones = await run.io_bound(cargar, nombre)
+        except Exception:
+            logger.exception("No se pudieron cargar las opciones de %s", nombre)
+            continue
+        if opciones:
+            resultado[nombre] = opciones
+    return resultado
+
+
 async def _confirmar(mensaje: str, detalle: str = "", *, peligro: bool = True) -> bool:
     """Diálogo Cancelar / Confirmar. Devuelve True solo si se confirmó."""
     with ui.dialog() as dialogo, ui.card().classes("min-w-[24rem]"):
@@ -109,13 +142,15 @@ def _mostrar_resultado(contenedor, resultado) -> None:
         ui.table(columns=columnas, rows=filas, row_key="_n", pagination=15).classes("w-full")
 
 
-def _construir_formulario(contenedor, parametros, *, ocultar=(), iniciales=None, solo_lectura=()) -> dict:
+def _construir_formulario(contenedor, parametros, *, ocultar=(), iniciales=None, solo_lectura=(), referencias=None) -> dict:
     """Dibuja los inputs y devuelve {param: widget} / {param: {campo: widget}}.
     `ocultar`: campos que no se piden (ej. la PK en un alta). `iniciales`:
     {param: objeto} para precargar un formulario de edición. `solo_lectura`:
-    campos visibles pero no editables (ej. la PK al editar)."""
+    campos visibles pero no editables (ej. la PK al editar). `referencias`:
+    {service: [(id, etiqueta)]} para mostrar las claves foráneas como desplegable."""
     widgets: dict = {}
     iniciales = iniciales or {}
+    referencias = referencias or {}
     contenedor.clear()
     with contenedor:
         if not parametros:
@@ -129,18 +164,29 @@ def _construir_formulario(contenedor, parametros, *, ocultar=(), iniciales=None,
                         c, abm.texto_inicial(getattr(origen, c.nombre, None)) if origen is not None else None,
                         solo_lectura=c.nombre in solo_lectura,
                         valor_bool=getattr(origen, c.nombre, None) if origen is not None else None,
+                        opciones_ref=referencias.get(c.referencia),
                     )
                     for c in p.campos if c.nombre not in ocultar
                 }
             else:
-                widgets[p.nombre] = _widget_campo(p.campo)
+                widgets[p.nombre] = _widget_campo(p.campo, opciones_ref=referencias.get(p.campo.referencia))
     return widgets
 
 
-def _widget_campo(campo, inicial=None, *, solo_lectura=False, valor_bool=None):
+def _widget_campo(campo, inicial=None, *, solo_lectura=False, valor_bool=None, opciones_ref=None):
     etiqueta_campo = campo.nombre + (" *" if campo.requerido else "")
     if campo.tipo == "bool":
         return ui.checkbox(etiqueta_campo, value=bool(campo.default if valor_bool is None else valor_bool))
+    if opciones_ref:  # clave foránea: desplegable con "id · descripción"
+        opciones = {valor: texto for valor, texto in opciones_ref}
+        valor = next((k for k in opciones if str(k) == str(inicial)), None) if inicial not in (None, "") else None
+        if valor is None and inicial not in (None, ""):
+            opciones[inicial] = f"{inicial} (no encontrado)"
+            valor = inicial
+        w = ui.select(opciones, label=etiqueta_campo, value=valor, with_input=True, clearable=not campo.requerido)
+        if solo_lectura:
+            w.props("readonly")
+        return w.classes("w-72")
     if campo.opciones:
         opciones = list(campo.opciones)
         valor = inicial if inicial not in (None, "") else (campo.default if campo.default in opciones else None)
@@ -203,7 +249,7 @@ def pagina_explorador(entidad: str = "") -> None:
         sel_metodo.set_options(
             {m: reflexion.nombre_legible(m) for m in reflexion.metodos_publicos(instancia)}, value=None)
 
-    def al_elegir_metodo(e) -> None:
+    async def al_elegir_metodo(e) -> None:
         zona_resultado.clear()
         if not e.value or not sel_service.value:
             ayuda.set_text("")
@@ -213,7 +259,8 @@ def pagina_explorador(entidad: str = "") -> None:
         descripcion = reflexion.descripcion_de(metodo)
         ayuda.set_text(f"{e.value}()" + (f" — {descripcion}" if descripcion else ""))
         estado["parametros"] = reflexion.parametros_de(metodo)
-        estado["widgets"] = _construir_formulario(zona_form, estado["parametros"])
+        refs = await _cargar_referencias(estado["parametros"])
+        estado["widgets"] = _construir_formulario(zona_form, estado["parametros"], referencias=refs)
         boton.set_visibility(True)
 
     async def ejecutar() -> None:
@@ -620,7 +667,7 @@ def pagina_abm(entidad: str = "") -> None:
             zona_filtros.clear()
         await cargar()
 
-    def abrir_formulario(modo: str) -> None:
+    async def abrir_formulario(modo: str) -> None:
         c = cap()
         srv = servicio()
         nombre_metodo = c.alta if modo == "alta" else c.modificar
@@ -631,6 +678,7 @@ def pagina_abm(entidad: str = "") -> None:
         iniciales = {}
         if modo == "editar":
             iniciales = {parametros[0].nombre: estado["objetos"][estado["fila"]]}
+        refs = await _cargar_referencias(parametros)
         titulo = f"{'Nuevo' if modo == 'alta' else 'Editar'} — {etiqueta(sel.value)}"
         with ui.dialog() as dialogo, ui.card().classes("min-w-[30rem]"):
             ui.label(titulo).classes("text-lg font-bold")
@@ -640,6 +688,7 @@ def pagina_abm(entidad: str = "") -> None:
                 ocultar={pk} if modo == "alta" and pk else (),
                 iniciales=iniciales,
                 solo_lectura={pk} if modo == "editar" and pk else (),
+                referencias=refs,
             )
             with ui.row().classes("justify-end w-full"):
                 ui.button("Cancelar", on_click=dialogo.close).props("flat")

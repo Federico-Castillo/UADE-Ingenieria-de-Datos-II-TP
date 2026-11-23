@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 
 from app.ui import reflexion
+from app.ui.referencias import clave_primaria  # noqa: F401 (se reexporta: lo usan la UI y los tests)
 
 _ALTAS = ("dar_alta", "crear", "registrar", "generar", "registrar_pago", "enviar")
 _BAJAS = ("dar_baja", "eliminar")
@@ -82,18 +83,6 @@ def detectar(instancia) -> Capacidades:
     if m is not None and _recibe_un_id(m):
         cap.buscar = "buscar"
     return cap
-
-
-def clave_primaria(clase: type) -> str | None:
-    """Convención del proyecto: la PK es el último campo del dataclass, se llama
-    id_* y es opcional (None hasta que la DB la asigna)."""
-    campos = dataclasses.fields(clase)
-    if not campos:
-        return None
-    ultimo = campos[-1]
-    if ultimo.name.startswith("id_") and ultimo.default is None:
-        return ultimo.name
-    return None
 
 
 def clase_del_alta(instancia, cap: Capacidades) -> type | None:
