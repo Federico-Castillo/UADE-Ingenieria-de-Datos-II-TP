@@ -99,3 +99,18 @@ def test_otras_entidades_conservan_su_baja_y_no_tienen_cierre():
 
     assert abm.detectar(ClienteService).baja == "dar_baja" and abm.detectar(ClienteService).cierre is None
     assert abm.detectar(VehiculoService).baja == "eliminar" and abm.detectar(VehiculoService).cierre is None
+
+
+# ---------- campos que la UI nunca pide ----------
+
+def test_password_hash_es_interno_y_el_alta_de_usuario_no_lo_necesita():
+    from app.services.usuario_service import UsuarioService
+
+    assert "password_hash" in abm.CAMPOS_INTERNOS
+    params = r.parametros_de(UsuarioService.dar_alta)
+    usuario, password = params[0], params[1]
+    assert "password_hash" in {c.nombre for c in usuario.campos}  # sigue en el dataclass, solo la UI lo oculta
+    valores = {c.nombre: "" for c in usuario.campos if c.nombre != "password_hash"}  # el formulario no lo envía
+    valores.update({"nombre": "Ana", "apellido": "Perez", "email": "a@b.com", "id_rol": "1", "estado": "activo"})
+    kwargs = r.construir_argumentos(params, {"usuario": valores, "password": "Clave123"})
+    assert kwargs["usuario"].password_hash == "" and kwargs["password"] == "Clave123"

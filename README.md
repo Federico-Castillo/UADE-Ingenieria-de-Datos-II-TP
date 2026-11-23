@@ -122,7 +122,8 @@ método nuevo lo expone solo. Sobre esa base:
   mail`) en lugar de tipear el número. Si el Service referenciado no tiene un
   listado simple, el campo queda como texto.
 - **Confirmación** antes de bajas, eliminaciones y procesos que modifican
-  datos en bloque; las contraseñas se enmascaran.
+  datos en bloque; las contraseñas se enmascaran y el `password_hash` (que
+  calcula el Service) nunca se pide.
 - El ABM detecta sus botones por convención de nombres y firmas
   (`app/ui/abm.py`): una entidad sin `modificar` no muestra "Editar", una sin
   baja no muestra "Baja" (por ejemplo, la factura es un documento contable).
@@ -298,8 +299,12 @@ Se escriben en `logs/app.log` (nivel controlado por `LOG_LEVEL` en `.env`).
 
 ## Notas técnicas
 
-- `app/ui/` es la capa de presentación web (NiceGUI): `principal.py` define las
-  pantallas y el resto es lógica pura sin NiceGUI y testeable sola
+- `app/ui/` es la capa de presentación web (NiceGUI), en tres niveles:
+  `principal.py` solo arranca el servidor; `paginas/` tiene un módulo por
+  pantalla (`explorador`, `entidades` = ABM, `envio`, `reportes`, `alertas`,
+  `transaccion`, `red`, `mapa`) y `comun.py` las piezas que comparten
+  (encabezado, llamadas a Services con manejo de errores, confirmación,
+  formularios generados). El resto es lógica pura sin NiceGUI y testeable sola
   (`reflexion`, `abm`, `opciones`, `referencias`, `ficha`, `grafos`, `salud`,
   `registro`). Solo usa Services, nunca Repositories ni drivers, salvo
   `salud.py`, que abre conexiones propias de vida corta para chequear cada

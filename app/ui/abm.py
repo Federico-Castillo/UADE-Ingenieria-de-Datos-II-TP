@@ -14,6 +14,11 @@ from app.ui.referencias import clave_primaria  # noqa: F401 (se reexporta: lo us
 _ALTAS = ("dar_alta", "crear", "registrar", "generar", "registrar_pago", "enviar")
 _BAJAS = ("dar_baja", "eliminar")
 
+# Campos que el usuario nunca debe tipear: los calcula el service. `password_hash`
+# lo arma `UsuarioService.dar_alta` a partir de `password`, y `modificar` lo
+# ignora y conserva el de la base, así que ocultarlo no pierde ningún dato.
+CAMPOS_INTERNOS = frozenset({"password_hash"})
+
 # Entidades que no se dan de baja sino que se CIERRAN cambiando su estado: el
 # registro se conserva (un incidente es un hecho que ocurrió). Clave: nombre
 # del service; valor: (método que cambia el estado, estado final). Su
