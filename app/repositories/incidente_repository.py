@@ -76,6 +76,22 @@ class IncidenteRepository:
             logger.exception("Error listando incidentes")
             raise RepositoryError(f"No se pudo listar los incidentes: {e}") from e
 
+    def eliminar(self, id_incidente: str) -> bool:
+        """Borrado físico (no baja lógica): se usa como compensación cuando
+        la transacción Incidente(Mongo)+Alerta(Redis) falla del lado de
+        Redis y hay que deshacer el Incidente recién creado."""
+        try:
+            result = self._collection.delete_one({"_id": ObjectId(id_incidente)})
+            eliminado = result.deleted_count > 0
+            if eliminado:
+                logger.info("Incidente eliminado (rollback) id=%s", id_incidente)
+            return eliminado
+        except InvalidId:
+            return False
+        except PyMongoError as e:
+            logger.exception("Error eliminando incidente")
+            raise RepositoryError(f"No se pudo eliminar el incidente: {e}") from e
+
     def actualizar_estado(self, id_incidente: str, estado: str) -> bool:
         try:
             result = self._collection.update_one(

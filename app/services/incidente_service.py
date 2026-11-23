@@ -27,6 +27,14 @@ class IncidenteService:
         incidente.id_incidente = id_incidente
         return incidente
 
+    def eliminar(self, id_incidente: str) -> None:
+        """Compensación (rollback) de la transacción Incidente(Mongo)+Alerta(Redis):
+        deshace un Incidente recién creado cuando la Alerta correspondiente
+        no pudo generarse. No es una baja de negocio, por eso no valida nada
+        más allá de que exista."""
+        if not self._repo.eliminar(id_incidente):
+            raise NotFoundError(f"No existe un incidente con id {id_incidente} para deshacer.")
+
     def cambiar_estado(self, id_incidente: str, estado: str) -> None:
         if estado not in _ESTADOS_VALIDOS:
             raise ValidationError(f"Estado inválido. Opciones: {', '.join(sorted(_ESTADOS_VALIDOS))}.")

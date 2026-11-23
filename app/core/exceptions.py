@@ -20,3 +20,9 @@ class ValidationError(AppError):
 
 class ConnectionConfigError(AppError):
     """Falta configuración obligatoria o falló la conexión a un motor al iniciar."""
+
+
+class TransaccionCrossEngineError(AppError):
+    """Una transacción que involucra más de un motor falló después de
+    confirmarse el primer paso, y se deshizo ese paso (rollback/compensación)
+    en vez de dejar un estado parcial entre los motores."""

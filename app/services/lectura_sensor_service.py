@@ -1,13 +1,17 @@
 """Reglas de negocio de LecturaSensor. Implementa el pipeline de eventos en
 una sola dirección que describe el desafío de complejidad adicional:
 Cassandra (lectura anómala) -> MongoDB (Incidente) -> Redis (Alerta). El
-pipeline nunca hace fallar el registro de la lectura: si algo falla al
-evaluar reglas o disparar incidente/alerta, se loguea y se sigue — la lectura
-en Cassandra ya quedó guardada, que es lo único que no puede perderse."""
+tramo Incidente+Alerta es una transacción cross-engine con rollback manual
+(ver _registrar_incidente_y_alerta_transaccional): si la Alerta en Redis
+falla después de confirmado el Incidente en Mongo, el Incidente se deshace
+en vez de quedar huérfano. Aun así, el pipeline completo nunca hace fallar
+el registro de la lectura: si esa transacción falla (ya revertida) o falla
+la evaluación de reglas, se loguea y se sigue — la lectura en Cassandra ya
+quedó guardada, que es lo único que no puede perderse."""
 import logging
 from datetime import datetime
 
-from app.core.exceptions import AppError, RepositoryError, ValidationError
+from app.core.exceptions import AppError, RepositoryError, TransaccionCrossEngineError, ValidationError
 from app.domain.incidente import Incidente
 from app.domain.lectura_sensor import CAMPO_POR_TIPO_SENSOR, LecturaSensor
 from app.repositories.contenedor_repository import ContenedorRepository
@@ -109,30 +113,57 @@ class LecturaSensorService:
         except RepositoryError:
             logger.exception("No se pudo resolver el envío del contenedor %s", sensor.id_contenedor)
 
-        id_evento = None
-        if id_envio is not None:
-            try:
-                incidente = self._incidente_service.registrar(
-                    Incidente(
-                        id_envio=id_envio,
-                        tipo=f"anomalia_{regla.tipo_sensor}",
-                        severidad=regla.severidad,
-                        descripcion=(
-                            f"Lectura del sensor {sensor.id_sensor} violó la regla '{regla.nombre}' "
-                            f"({regla.tipo_sensor} {regla.operador_comparacion} {regla.valor_umbral})."
-                        ),
-                    )
-                )
-                id_evento = incidente.id_incidente
-            except AppError:
-                logger.exception("No se pudo registrar el incidente derivado de la lectura")
-        else:
+        if id_envio is None:
+            # Sin envío asignado no hay nada a lo que vincular un Incidente,
+            # así que la Alerta se genera sola — no participa de la
+            # transacción Incidente+Alerta de más abajo.
             logger.warning(
                 "El contenedor %s no tiene envío asignado: se genera la alerta sin incidente vinculado",
                 sensor.id_contenedor,
             )
+            try:
+                self._alerta_service.generar_alerta(sensor.id_sensor, regla.id_regla, id_evento=None)
+            except AppError:
+                logger.exception("No se pudo generar la alerta derivada de la lectura")
+            return
 
         try:
-            self._alerta_service.generar_alerta(sensor.id_sensor, regla.id_regla, id_evento=id_evento)
+            self._registrar_incidente_y_alerta_transaccional(sensor, regla, id_envio)
         except AppError:
-            logger.exception("No se pudo generar la alerta derivada de la lectura")
+            # Igual que el resto del pipeline: se loguea y se sigue, la
+            # lectura en Cassandra ya quedó guardada y es lo único que no
+            # puede perderse por esto.
+            logger.exception("Transacción incidente+alerta fallida para la lectura del sensor %s", sensor.id_sensor)
+
+    def _registrar_incidente_y_alerta_transaccional(self, sensor, regla, id_envio: int) -> None:
+        """Transacción Incidente(Mongo) + Alerta(Redis) con rollback manual:
+        no hay 2PC posible entre motores heterogéneos, así que la atomicidad
+        se logra a mano — se confirma el Incidente primero (motor 'fuente'
+        de este par) y si la Alerta no puede generarse, se deshace
+        (compensación) el Incidente recién creado en vez de dejarlo huérfano
+        sin alerta asociada."""
+        incidente = self._incidente_service.registrar(
+            Incidente(
+                id_envio=id_envio,
+                tipo=f"anomalia_{regla.tipo_sensor}",
+                severidad=regla.severidad,
+                descripcion=(
+                    f"Lectura del sensor {sensor.id_sensor} violó la regla '{regla.nombre}' "
+                    f"({regla.tipo_sensor} {regla.operador_comparacion} {regla.valor_umbral})."
+                ),
+            )
+        )
+        try:
+            self._alerta_service.generar_alerta(
+                sensor.id_sensor, regla.id_regla, id_evento=incidente.id_incidente
+            )
+        except AppError as e:
+            logger.exception(
+                "No se pudo generar la alerta del incidente %s: se revierte el incidente (rollback)",
+                incidente.id_incidente,
+            )
+            self._incidente_service.eliminar(incidente.id_incidente)
+            raise TransaccionCrossEngineError(
+                f"Falló la alerta del incidente {incidente.id_incidente} en Redis; "
+                "el incidente en Mongo fue revertido."
+            ) from e
