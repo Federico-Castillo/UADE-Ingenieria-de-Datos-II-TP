@@ -103,7 +103,6 @@ apagar un motor a propósito es parte de la demo de rollback.
 | `/envio` | Ficha 360° de un envío: datos y cliente (MySQL), contenedores y sensores (MySQL), última lectura y recorrido GPS (Cassandra), incidentes, predicción de riesgo y eventos (MongoDB), ruta como grafo (Neo4j) y alertas activas (Redis). Cada tarjeta carga y falla por separado: con un motor caído, solo su tarjeta avisa. |
 | `/reportes` | Los reportes operativos y analíticos con gráficos, en 5 pestañas (envíos, incidentes, desempeño histórico, riesgo de atrasos, transporte y clientes), y botón para recalcular las predicciones de ML. |
 | `/alertas` | Alertas activas con actualización automática y resolución, y un simulador de sensores IoT en vivo (una lectura, un tick o continuo) que dispara el pipeline Cassandra → MongoDB → Redis. |
-| `/transaccion` | Demo guiada del rollback de una transacción poliglota (ver abajo). |
 | `/red` | Grafo de Neo4j: red cliente-operador y ruta de un envío. |
 | `/mapa` | Recorrido GPS de un contenedor (folium/Leaflet embebido). |
 
@@ -144,11 +143,9 @@ atomicidad se logra a mano: se confirma el Incidente y, si la Alerta falla, se
 (`LecturaSensorService._registrar_incidente_y_alerta_transaccional`). La
 lectura en Cassandra nunca se pierde.
 
-En `/transaccion`: enviar una lectura anómala con todo encendido (COMMIT) →
-**Detener Redis** (ejecuta `docker stop redis`, con confirmación) → enviar otra
-(ROLLBACK: la tabla muestra que los incidentes no cambiaron, y abajo se ven las
-líneas del log que lo documentan) → **Iniciar Redis**. El mismo guion en
-consola:
+Para verlo: enviar una lectura anómala con todo encendido (COMMIT), detener
+Redis, enviar otra (ROLLBACK: los incidentes no cambian y el log lo documenta)
+y volver a iniciar Redis. El guion en consola:
 
 ```bash
 docker stop redis
@@ -310,7 +307,7 @@ Se escriben en `logs/app.log` (nivel controlado por `LOG_LEVEL` en `.env`).
 - `app/ui/` es la capa de presentación web (NiceGUI), en tres niveles:
   `principal.py` solo arranca el servidor; `paginas/` tiene un módulo por
   pantalla (`explorador`, `entidades` = ABM, `envio`, `reportes`, `alertas`,
-  `transaccion`, `red`, `mapa`) y `comun.py` las piezas que comparten
+  `red`, `mapa`) y `comun.py` las piezas que comparten
   (encabezado, llamadas a Services con manejo de errores, confirmación,
   formularios generados). El resto es lógica pura sin NiceGUI y testeable sola
   (`reflexion`, `abm`, `opciones`, `referencias`, `ficha`, `grafos`, `salud`,

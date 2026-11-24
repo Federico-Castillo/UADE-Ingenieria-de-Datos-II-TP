@@ -30,7 +30,6 @@ def encabezado(titulo: str) -> None:
         ui.link("Ficha envío", "/envio").classes("text-white")
         ui.link("Reportes", "/reportes").classes("text-white")
         ui.link("Alertas", "/alertas").classes("text-white")
-        ui.link("Transacción", "/transaccion").classes("text-white")
         ui.link("Red", "/red").classes("text-white")
         ui.link("Mapa", "/mapa").classes("text-white")
         ui.space()

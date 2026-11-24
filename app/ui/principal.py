@@ -7,7 +7,6 @@ Este módulo es solo el punto de arranque; cada pantalla vive en `app/ui/paginas
   /envio        Ficha 360° de un envío (los 5 motores)
   /reportes     Reportes operativos y analíticos con gráficos
   /alertas      Alertas activas en vivo y simulador de sensores
-  /transaccion  Demo guiada: rollback Mongo+Redis si Redis se cae
   /red          Grafo de Neo4j
   /mapa         Recorrido GPS de un contenedor
 Las piezas compartidas están en `app/ui/comun.py`.
