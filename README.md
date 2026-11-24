@@ -207,6 +207,14 @@ python -m pytest -v                  # + los unitarios (ej. lógica del simulado
 python -m pytest tests/test_ui_*.py  # solo los de la interfaz web: no necesitan Docker
 ```
 
+La suite completa no deja residuos en la base de desarrollo: `tests/conftest.py`
+limpia, además de lo que lleva prefijo `TEST_`, los eventos de outbox de las
+entidades que el propio test dio de baja, los incidentes huérfanos que dispara el
+pipeline con reglas que no son del test (ej. las `DEMO_`) y los nodos de Neo4j
+sin entidad en MySQL. Verificado: cuatro corridas completas seguidas dejan la
+base idéntica (conteos por tabla/colección, ids de incidentes, alertas, lecturas
+y nodos).
+
 Los de `tests/test_ui_*.py` prueban la lógica de la interfaz (reflexión de
 firmas, detección del ABM, desplegables, ficha del envío, grafos, chequeo de
 motores) con Services falsos, sin motores ni navegador. Lo que queda sin test

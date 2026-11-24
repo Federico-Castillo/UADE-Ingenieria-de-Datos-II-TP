@@ -1,5 +1,6 @@
 import os
 import sys
+from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -239,8 +240,40 @@ def alertas_creadas(alerta_repo):
         alerta_repo.resolver(id_alerta)
 
 
+# Margen para absorber el redondeo de segundos de las columnas DATETIME.
+_MARGEN = timedelta(seconds=2)
+
+
+def _entidades_existentes() -> tuple[list[int], list[int]]:
+    """(ids de envío, ids de cliente) que existen ahora en MySQL."""
+    with get_cursor() as cursor:
+        cursor.execute("SELECT id_envio FROM envio")
+        envios = [r["id_envio"] for r in cursor.fetchall()]
+        cursor.execute("SELECT id_cliente FROM cliente")
+        clientes = [r["id_cliente"] for r in cursor.fetchall()]
+    return envios, clientes
+
+
+def _borrar_outbox_huerfano(desde):
+    """Un test que da de baja un cliente/envío por el repository deja sus eventos
+    de outbox ('creado', 'eliminado'), y la limpieza por JOIN ya no los encuentra
+    porque la entidad no existe más. Se borran solo los creados DURANTE el test
+    (ventana `desde`) cuya entidad ya no existe: nunca historial anterior ni
+    eventos de entidades vivas."""
+    with transaction() as cursor:
+        cursor.execute(
+            "DELETE FROM outbox_eventos WHERE fecha_creacion >= %s AND ("
+            "(entidad = 'envio' AND id_entidad NOT IN (SELECT id_envio FROM envio)) OR "
+            "(entidad = 'cliente' AND id_entidad NOT IN (SELECT id_cliente FROM cliente)))",
+            (desde,),
+        )
+
+
+# Depende de las fixtures de Mongo y Neo4j a propósito: pytest desarma primero lo
+# que depende de otra, así que MySQL se limpia ANTES y los otros dos motores
+# pueden decidir qué es huérfano comparando contra lo que ya no está en MySQL.
 @pytest.fixture(autouse=True)
-def limpiar_datos_de_test(mysql_connection):
+def limpiar_datos_de_test(mysql_connection, limpiar_mongo_de_test, limpiar_neo4j_de_test):
     def _borrar():
         with transaction() as cursor:
             # outbox_eventos no tiene FK (payload genérico por entidad), pero
@@ -324,12 +357,18 @@ def limpiar_datos_de_test(mysql_connection):
             cursor.execute("DELETE FROM vehiculo WHERE identificacion LIKE %s", (f"{TEST_PREFIX}%",))
 
     _borrar()
+    with get_cursor() as cursor:
+        cursor.execute("SELECT NOW() AS ahora")
+        inicio = cursor.fetchone()["ahora"] - _MARGEN
     yield
     _borrar()
+    _borrar_outbox_huerfano(inicio)
 
 
 @pytest.fixture(autouse=True)
 def limpiar_mongo_de_test():
+    inicio = datetime.now(timezone.utc) - _MARGEN
+
     def _borrar():
         db = get_db()
         db["eventos_logisticos"].delete_many({"tipo_evento": {"$regex": f"^{TEST_PREFIX}"}})
@@ -345,9 +384,18 @@ def limpiar_mongo_de_test():
         # su descripción sí menciona el nombre de la regla que los generó.
         db["incidentes"].delete_many({"descripcion": {"$regex": TEST_PREFIX}})
 
+    def _borrar_huerfanos():
+        # Una lectura de prueba también puede violar una Regla que NO es del test
+        # (ej. la DEMO_ del seed); ese incidente cuelga del envío TEST_, que
+        # MySQL ya borró (esta fixture se desarma después), y no lleva prefijo.
+        # Se borran los creados durante el test cuyo envío ya no existe.
+        envios, _ = _entidades_existentes()
+        get_db()["incidentes"].delete_many({"fecha": {"$gte": inicio}, "id_envio": {"$nin": envios}})
+
     _borrar()
     yield
     _borrar()
+    _borrar_huerfanos()
 
 
 @pytest.fixture(autouse=True)
@@ -376,9 +424,28 @@ def limpiar_neo4j_de_test():
                 "MATCH (u:Ubicacion) WHERE u.nombre STARTS WITH $prefix DETACH DELETE u", prefix=TEST_PREFIX
             )
 
+    def _borrar_huerfanos():
+        # El worker de outbox proyecta :Cliente/:Envio con MERGE por id, y el
+        # :Cliente de un envío nace SIN razon_social (solo tiene su id), así
+        # que la limpieza por prefijo no lo ve. Un nodo cuya entidad ya no
+        # existe en MySQL (esta fixture se desarma después de la de MySQL) es
+        # lo que el worker terminaría borrando igual (DETACH DELETE idempotente).
+        envios, clientes = _entidades_existentes()
+        with neo4j_session() as sess:
+            sess.run(
+                """
+                MATCH (e:Envio) WHERE NOT e.id_envio IN $envios
+                OPTIONAL MATCH (e)-[:INCLUYE]->(t:Tramo)
+                DETACH DELETE e, t
+                """,
+                envios=envios,
+            )
+            sess.run("MATCH (c:Cliente) WHERE NOT c.id_cliente IN $clientes DETACH DELETE c", clientes=clientes)
+
     _borrar()
     yield
     _borrar()
+    _borrar_huerfanos()
 
 
 @pytest.fixture
