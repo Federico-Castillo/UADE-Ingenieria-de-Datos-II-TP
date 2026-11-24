@@ -9,6 +9,10 @@ prefijo 'DEMO_', igual que los tests usan 'TEST_' — esto permite volver a
 correr el script sin acumular duplicados (limpia antes de cargar) y nunca
 pisa datos reales que el usuario haya cargado a mano.
 
+Incluye además un envío de ejemplo completo (Córdoba -> Dubái, con 3 tramos y
+datos en los 5 motores; ver scripts/seed_envio_completo.py), que también puede
+cargarse solo.
+
 Al final corre, además, los procesos periódicos (cierre mensual y detección
 de sensores inactivos) para que no aparezcan vacíos. Ojo: la detección de
 sensores inactivos evalúa TODOS los sensores con estado='activo' de la base
@@ -85,10 +89,11 @@ PREFIX = "DEMO_"
 _PASSWORD = "Demo12345"
 
 
-def limpiar_datos_demo() -> None:
+def limpiar_datos_demo(prefix: str = PREFIX) -> None:
     """Mismo criterio (y mismo orden por FK) que la limpieza autouse de
-    tests/conftest.py, pero con el prefijo DEMO_ en vez de TEST_."""
-    like = f"{PREFIX}%"
+    tests/conftest.py, pero con el prefijo DEMO_ en vez de TEST_. Acepta un
+    prefijo más específico (ej. DEMO_EJ_) para limpiar solo un subconjunto."""
+    like = f"{prefix}%"
     with transaction() as cursor:
         cursor.execute("DELETE FROM reporte WHERE tipo LIKE %s", (like,))
         cursor.execute("DELETE FROM regla WHERE nombre LIKE %s", (like,))
@@ -161,10 +166,10 @@ def limpiar_datos_demo() -> None:
     db = get_db()
     # Los eventos de entrega necesitan tipo_evento='entregado' fijo (no puede
     # llevar el prefijo), por eso se marcan vía 'descripcion' en vez de tipo.
-    db["eventos_logisticos"].delete_many({"descripcion": {"$regex": f"^{PREFIX}"}})
-    db["incidentes"].delete_many({"tipo": {"$regex": f"^{PREFIX}"}})
-    db["mensajes"].delete_many({"contenido": {"$regex": f"^{PREFIX}"}})
-    db["grupos_trabajo"].delete_many({"nombre": {"$regex": f"^{PREFIX}"}})
+    db["eventos_logisticos"].delete_many({"descripcion": {"$regex": f"^{prefix}"}})
+    db["incidentes"].delete_many({"tipo": {"$regex": f"^{prefix}"}})
+    db["mensajes"].delete_many({"contenido": {"$regex": f"^{prefix}"}})
+    db["grupos_trabajo"].delete_many({"nombre": {"$regex": f"^{prefix}"}})
     # predicciones_riesgo no tiene campos de texto propios: se marcan con un
     # flag dentro de features_entrada (dict libre) para poder filtrarlas.
     db["predicciones_riesgo"].delete_many({"features_entrada.demo": True})
@@ -179,11 +184,11 @@ def limpiar_datos_demo() -> None:
             OPTIONAL MATCH (t)-[:DESTINO]->(d:Ubicacion)
             DETACH DELETE c, e, t, o, d
             """,
-            prefix=PREFIX,
+            prefix=prefix,
         )
-        sess.run("MATCH (v:Vehiculo) WHERE v.identificacion STARTS WITH $prefix DETACH DELETE v", prefix=PREFIX)
-        sess.run("MATCH (o:Operador) WHERE o.nombre STARTS WITH $prefix DETACH DELETE o", prefix=PREFIX)
-        sess.run("MATCH (u:Ubicacion) WHERE u.nombre STARTS WITH $prefix DETACH DELETE u", prefix=PREFIX)
+        sess.run("MATCH (v:Vehiculo) WHERE v.identificacion STARTS WITH $prefix DETACH DELETE v", prefix=prefix)
+        sess.run("MATCH (o:Operador) WHERE o.nombre STARTS WITH $prefix DETACH DELETE o", prefix=prefix)
+        sess.run("MATCH (u:Ubicacion) WHERE u.nombre STARTS WITH $prefix DETACH DELETE u", prefix=prefix)
 
     print("Datos de prueba anteriores eliminados (si había).")
 
@@ -494,6 +499,9 @@ def seed() -> None:
     _crear_mensajeria(usuarios)
     _crear_predicciones(envios)
     _crear_reportes_metadata(usuarios)
+    # Import diferido: seed_envio_completo importa este módulo (limpieza y prefijo).
+    from scripts.seed_envio_completo import cargar_ejemplo
+    cargar_ejemplo()  # envío Córdoba-Dubái con 3 tramos y todos los datos relacionados
 
     print(
         f"Datos base cargados: {len(clientes)} clientes, {len(proveedores)} proveedores, "

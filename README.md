@@ -4,6 +4,11 @@ Plataforma de gestión de logística internacional y monitoreo de cargas IoT, co
 persistencia políglota en 5 motores: MySQL (relacional), MongoDB (documental),
 Neo4j (grafos), Redis (clave-valor), Cassandra (tabular).
 
+Tiene dos interfaces sobre los mismos Services (no hay lógica de negocio en
+ninguna): una **consola** (`main.py`) y una **interfaz web** (`main_nicegui.py`)
+que cubre lo mismo, más reportes con gráficos, mapas, un grafo de Neo4j y una
+demo guiada de rollback entre motores.
+
 ## Requisitos
 
 - Python 3.12+
@@ -36,8 +41,12 @@ esquema, ver `scripts/schema/redis_conventions.md`).
 ## Correr la app
 
 ```bash
-python main.py
+python main.py            # interfaz de consola
+python main_nicegui.py    # interfaz web: abre http://localhost:8090
 ```
+
+Las dos pueden usarse a la vez. La web verifica los 5 motores al arrancar e
+informa cuál no responde (arranca igual, ver más abajo).
 
 Implementados de punta a punta: Clientes, Usuarios, Roles, Sesiones (Redis),
 Proveedores, Operadores Logísticos, Contenedores, Sensores IoT, Vehículos,
@@ -64,18 +73,108 @@ periódicos de la consigna ya implementados: Cierre Mensual de Cuentas
 Corrientes (snapshot idempotente del saldo por período, clientes y
 proveedores/operadores) y Detección de Sensores Inactivos (compara la última
 lectura en Cassandra contra un umbral de horas, marca el sensor y genera una
-Alerta). No queda nada como "próximamente" en el menú.
+Alerta). No queda nada como "próximamente" en el menú de la consola.
 
 > **Nota Windows:** `getpass.getpass()` (usado para la contraseña en el alta de
 > Usuario) lee directo de la consola, no de stdin redirigido — no se puede
 > automatizar ese flujo por pipe, solo funciona en una terminal interactiva real.
+
+## Interfaz web (NiceGUI)
+
+```bash
+python main_nicegui.py        # http://localhost:8090
+```
+
+**Seguridad.** La UI no tiene autenticación y puede dar de baja datos y hasta
+detener contenedores de Docker, por eso escucha **solo en `127.0.0.1`** (la propia
+máquina). Para abrirla desde otro equipo hay que pedirlo a propósito
+(`UI_HOST=0.0.0.0 python main_nicegui.py`) y la app lo avisa en pantalla y en el log.
+
+Un encabezado común a todas las pantallas muestra una insignia verde/roja por
+motor (se actualiza cada 3 segundos). Al arrancar, `main_nicegui.py` chequea
+los 5 motores (login/ping real, con timeout) y, si alguno no responde, lo
+informa junto con el comando para levantarlo; la interfaz abre igual porque
+apagar un motor a propósito es parte de la demo de rollback.
+
+| Pantalla | Qué hace |
+|---|---|
+| `/abm` | ABM por entidad: tabla con selección y botones Nuevo / Editar (formulario precargado) / Baja o Eliminar (con confirmación), filtros del listado y búsqueda. 18 entidades. |
+| `/` (Explorador) | Cualquier método de cualquier Service: se elige entidad y operación, el formulario se arma solo y el resultado sale en tabla. Cubre también los procesos especiales (cierres, outbox, predicción, sensores inactivos...). `/?entidad=cliente` preselecciona la entidad. |
+| `/envio` | Ficha 360° de un envío: datos y cliente (MySQL), contenedores y sensores (MySQL), última lectura y recorrido GPS (Cassandra), incidentes, predicción de riesgo y eventos (MongoDB), ruta como grafo (Neo4j) y alertas activas (Redis). Cada tarjeta carga y falla por separado: con un motor caído, solo su tarjeta avisa. |
+| `/reportes` | Los reportes operativos y analíticos con gráficos, en 5 pestañas (envíos, incidentes, desempeño histórico, riesgo de atrasos, transporte y clientes), y botón para recalcular las predicciones de ML. |
+| `/alertas` | Alertas activas con actualización automática y resolución, y un simulador de sensores IoT en vivo (una lectura, un tick o continuo) que dispara el pipeline Cassandra → MongoDB → Redis. |
+| `/red` | Grafo de Neo4j: red cliente-operador y ruta de un envío. |
+| `/mapa` | Recorrido GPS de un contenedor (folium/Leaflet embebido). |
+
+**Cómo está hecha.** No hay una pantalla por entidad: `app/ui/reflexion.py`
+lee la firma y los type hints de cada método de cada Service y arma el
+formulario (los dataclasses se expanden en campos; soporta números, fechas,
+listas separadas por coma y diccionarios en JSON). `app/ui/registro.py`
+descubre los Services de `app/services/`, así que agregar un Service o un
+método nuevo lo expone solo. Sobre esa base:
+
+- **Desplegables de valores fijos** (`app/ui/opciones.py`): salen de fuentes
+  que el proyecto ya tiene (las constantes `_XXX_VALIDOS` de los Services, los
+  ENUM de `mysql_schema.sql` y `CAMPO_POR_TIPO_SENSOR`), no de listas copiadas.
+- **Desplegables de claves foráneas** (`app/ui/referencias.py`): todo campo
+  `id_<entidad>` se elige entre los registros reales (`70 · Razón social ·
+  mail`) en lugar de tipear el número. Si el Service referenciado no tiene un
+  listado simple, el campo queda como texto.
+- **Confirmación** antes de bajas, eliminaciones y procesos que modifican
+  datos en bloque; las contraseñas se enmascaran y el `password_hash` (que
+  calcula el Service) nunca se pide.
+- El ABM detecta sus botones por convención de nombres y firmas
+  (`app/ui/abm.py`): una entidad sin `modificar` no muestra "Editar", una sin
+  baja no muestra "Baja" (por ejemplo, la factura es un documento contable).
+  Los incidentes no se borran: su botón es **Cerrar** (pasan a estado
+  `cerrado` y quedan en el historial); el `eliminar` del Service existe solo
+  como compensación del rollback.
+
+Limitación conocida: las entidades sin un `listar` simple (pagos, lecturas de
+sensores, mensajes, alertas, tramos...) no tienen tabla en `/abm`; se operan
+desde el Explorador.
+
+### Demo del rollback entre motores
+
+El registro de una lectura anómala crea un Incidente en MongoDB y una Alerta
+en Redis. Entre dos motores no existe un `COMMIT` único (2PC), así que la
+atomicidad se logra a mano: se confirma el Incidente y, si la Alerta falla, se
+**compensa** eliminando el Incidente en vez de dejarlo huérfano
+(`LecturaSensorService._registrar_incidente_y_alerta_transaccional`). La
+lectura en Cassandra nunca se pierde.
+
+Para verlo: enviar una lectura anómala con todo encendido (COMMIT), detener
+Redis, enviar otra (ROLLBACK: los incidentes no cambian y el log lo documenta)
+y volver a iniciar Redis. El guion en consola:
+
+```bash
+docker stop redis
+python scripts/simulador_iot.py --once --anomaly-prob 1.0
+# logs/app.log: "se revierte el incidente (rollback)" / "Incidente eliminado (rollback)"
+docker start redis
+```
 
 ## Datos de prueba para la defensa
 
 ```bash
 python scripts/seed_datos_prueba.py                     # limpia y carga un set chico (DEMO_)
 python scripts/seed_datos_prueba.py --solo-limpiar        # solo borra los datos DEMO_
+python scripts/seed_envio_completo.py                   # solo el envío de ejemplo (DEMO_EJ_)
 ```
+
+El seed ya incluye un **envío de ejemplo completo**: Córdoba → Dubái, en
+tránsito, con 3 tramos (camión, barco, camión), 2 contenedores con 4 sensores
+cada uno y lecturas GPS a lo largo de la ruta, una alerta de temperatura con
+su incidente, eventos logísticos, predicción de riesgo, mensajería, y
+facturación con pagos (factura al cliente parcial; facturas de 3 operadores y
+un proveedor pagadas, parciales y pendientes). Es el mejor envío para abrir en
+`/envio` (la ficha lo muestra en los 5 motores). Se ve con
+`seed_envio_completo.py` por separado si solo se quiere recargar ese ejemplo.
+
+Para empezar de cero (borra los datos de los 5 motores): `docker-compose down -v`,
+`docker-compose up -d`, esperar a que Neo4j y Cassandra estén listos (tardan más
+que el resto; si el esquema falla, reintentar) y volver a correr
+`init_all.py` y el seed.
 
 Reusa los Services existentes de punta a punta (nada de SQL/Cypher nuevo):
 6 clientes, proveedores/operadores, vehículos, contenedores+sensores,
@@ -112,7 +211,21 @@ Requieren `docker-compose up -d` y el esquema de MySQL ya creado:
 ```bash
 python -m pytest -m integration -v   # tests de integración (contra las DB reales)
 python -m pytest -v                  # + los unitarios (ej. lógica del simulador, sin DB)
+python -m pytest tests/test_ui_*.py  # solo los de la interfaz web: no necesitan Docker
 ```
+
+La suite completa no deja residuos en la base de desarrollo: `tests/conftest.py`
+limpia, además de lo que lleva prefijo `TEST_`, los eventos de outbox de las
+entidades que el propio test dio de baja, los incidentes huérfanos que dispara el
+pipeline con reglas que no son del test (ej. las `DEMO_`) y los nodos de Neo4j
+sin entidad en MySQL. Verificado: cuatro corridas completas seguidas dejan la
+base idéntica (conteos por tabla/colección, ids de incidentes, alertas, lecturas
+y nodos).
+
+Los de `tests/test_ui_*.py` prueban la lógica de la interfaz (reflexión de
+firmas, detección del ABM, desplegables, ficha del envío, grafos, chequeo de
+motores) con Services falsos, sin motores ni navegador. Lo que queda sin test
+automático son los clics y el aspecto de las pantallas.
 
 ## Procesos periódicos
 
@@ -184,9 +297,11 @@ Valida que haya suficientes muestras y más de una clase antes de entrenar.
 
 ## Visualización geográfica de GPS
 
-La app es de consola — no hay ventana propia donde dibujar un mapa — así
-que "visualizar" las posiciones GPS de un contenedor es generar un archivo
-HTML standalone (folium/Leaflet) que se abre aparte en el navegador. Menú
+Desde la consola no hay ventana propia donde dibujar un mapa — así que
+"visualizar" las posiciones GPS de un contenedor es generar un archivo
+HTML standalone (folium/Leaflet) que se abre aparte en el navegador (la
+interfaz web, en cambio, lo muestra embebido en `/mapa` y en la ficha del
+envío). Menú
 "Monitoreo IoT: Lecturas de Sensor" -> "Generar mapa GPS de un contenedor":
 usa `LecturaSensorService.listar_por_contenedor()` (nuevo — combina y
 ordena las lecturas de TODOS los sensores del contenedor, no de uno en
@@ -199,6 +314,16 @@ Se escriben en `logs/app.log` (nivel controlado por `LOG_LEVEL` en `.env`).
 
 ## Notas técnicas
 
+- `app/ui/` es la capa de presentación web (NiceGUI), en tres niveles:
+  `principal.py` solo arranca el servidor; `paginas/` tiene un módulo por
+  pantalla (`explorador`, `entidades` = ABM, `envio`, `reportes`, `alertas`,
+  `red`, `mapa`) y `comun.py` las piezas que comparten
+  (encabezado, llamadas a Services con manejo de errores, confirmación,
+  formularios generados). El resto es lógica pura sin NiceGUI y testeable sola
+  (`reflexion`, `abm`, `opciones`, `referencias`, `ficha`, `grafos`, `salud`,
+  `registro`). Solo usa Services, nunca Repositories ni drivers, salvo
+  `salud.py`, que abre conexiones propias de vida corta para chequear cada
+  motor sin tocar los singletons de `app/db/`.
 - Acceso a MySQL con SQL parametrizado (`mysql-connector-python`) dentro de
   clases Repository, sin ORM.
 - `app/db/` tiene un módulo de conexión por motor, reusado tal cual por

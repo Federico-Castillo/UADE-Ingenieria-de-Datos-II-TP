@@ -1,4 +1,5 @@
 from app.core.exceptions import NotFoundError, ValidationError
+from app.domain.pago import MEDIOS_PAGO_VALIDOS
 from app.domain.pago_emitido import PagoEmitido
 from app.repositories.factura_recibida_repository import FacturaRecibidaRepository
 from app.repositories.pago_emitido_repository import PagoEmitidoRepository
@@ -16,8 +17,8 @@ class PagoEmitidoService:
     def registrar_pago(self, pago: PagoEmitido) -> PagoEmitido:
         if pago.monto <= 0:
             raise ValidationError("El monto debe ser mayor a cero.")
-        if not pago.medio_pago or not pago.medio_pago.strip():
-            raise ValidationError("El medio de pago no puede estar vacío.")
+        if pago.medio_pago not in MEDIOS_PAGO_VALIDOS:
+            raise ValidationError(f"El medio de pago debe ser uno de: {', '.join(MEDIOS_PAGO_VALIDOS)}.")
         if self._factura_repo.obtener_por_id(pago.id_factura_recibida) is None:
             raise ValidationError(f"No existe la factura recibida con id {pago.id_factura_recibida}.")
         id_pago = self._repo.crear(pago)
