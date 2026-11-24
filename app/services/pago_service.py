@@ -1,5 +1,5 @@
 from app.core.exceptions import NotFoundError, ValidationError
-from app.domain.pago import Pago
+from app.domain.pago import MEDIOS_PAGO_VALIDOS, Pago
 from app.repositories.factura_repository import FacturaRepository
 from app.repositories.pago_repository import PagoRepository
 
@@ -16,8 +16,8 @@ class PagoService:
     def registrar_pago(self, pago: Pago) -> Pago:
         if pago.monto <= 0:
             raise ValidationError("El monto debe ser mayor a cero.")
-        if not pago.medio_pago or not pago.medio_pago.strip():
-            raise ValidationError("El medio de pago no puede estar vacío.")
+        if pago.medio_pago not in MEDIOS_PAGO_VALIDOS:
+            raise ValidationError(f"El medio de pago debe ser uno de: {', '.join(MEDIOS_PAGO_VALIDOS)}.")
         if self._factura_repo.obtener_por_id(pago.id_factura) is None:
             raise ValidationError(f"No existe la factura con id {pago.id_factura}.")
         id_pago = self._repo.crear(pago)

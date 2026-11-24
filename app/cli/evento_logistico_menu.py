@@ -15,7 +15,7 @@ def _registrar(service: EventoLogisticoService) -> None:
     descripcion = leer_opcional("Descripción") or ""
     evento = EventoLogistico(
         id_envio=leer_entero("ID de envío"),
-        tipo_evento=leer_no_vacio("Tipo de evento (carga_iniciada/en_transito/aduana/retraso/descarga/entregado)"),
+        tipo_evento=leer_no_vacio("Tipo de evento (carga_iniciada/en_transito/aduana/retraso/descarga/entregado; carga_iniciada y en_transito pasan el envío a "en_transito", entregado a "entregado")"),
         descripcion=descripcion,
     )
     creado = service.registrar(evento)

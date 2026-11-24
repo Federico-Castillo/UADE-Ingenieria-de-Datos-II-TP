@@ -6,7 +6,7 @@ import os
 from nicegui import run, ui
 
 from app.ui import ficha, grafos, reflexion
-from app.ui.comun import encabezado, reg
+from app.ui.comun import confirmar, encabezado, llamar, reg
 
 logger = logging.getLogger(__name__)
 
@@ -154,6 +154,7 @@ async def pagina_ficha(id_envio: int | None = None) -> None:
     async def fase_contenedores():
         sec = await en_hilo(ficha.cargar_contenedores, id_envio)
         _pintar_seccion(cuerpo_cont, sec, _r_contenedores)
+        await _controles_contenedores(cuerpo_cont, sec, id_envio)
         lect = await en_hilo(ficha.cargar_lecturas, sec)
         _pintar_seccion(cuerpo_lect, lect, _r_lecturas)
         _preparar_mapa(cuerpo_mapa, sec)
@@ -179,6 +180,55 @@ async def pagina_ficha(id_envio: int | None = None) -> None:
         fase_simple(ficha.cargar_riesgo, cuerpo_riesgo, _r_riesgo),
         fase_simple(ficha.cargar_ruta, cuerpo_ruta, lambda tramos: _r_ruta(tramos, id_envio)),
     )
+
+
+async def _controles_contenedores(cuerpo, seccion, id_envio: int) -> None:
+    """Asignar / quitar contenedores del envío (tabla N:M envio_contenedor).
+    Tras cada cambio se recarga la ficha para que todas las tarjetas
+    (lecturas, alertas, mapa) reflejen la nueva asignación."""
+    if seccion.error:
+        return
+    asignados = {i["contenedor"].id_contenedor: i["contenedor"] for i in (seccion.datos or [])}
+    try:  # esta tarea corre fuera del contexto de la página: no se puede usar ui.notify acá
+        todos = await run.io_bound(reg().obtener("contenedor").listar)
+    except Exception:
+        logger.exception("No se pudo listar los contenedores para asignar")
+        return
+    libres = {c.id_contenedor: f"{c.id_contenedor} · {c.codigo_internacional} ({c.estado})"
+              for c in todos if c.id_contenedor not in asignados}
+    servicio = reg().obtener("envio_contenedor")
+
+    async def asignar() -> None:
+        if sel_asignar.value is None:
+            ui.notify("Elegí un contenedor para asignar.", type="warning")
+            return
+        ok, _ = await llamar(servicio.asignar_contenedor, id_envio, sel_asignar.value)
+        if ok:
+            ui.notify("Contenedor asignado", type="positive")
+            ui.navigate.reload()
+
+    async def quitar() -> None:
+        if sel_quitar.value is None:
+            ui.notify("Elegí un contenedor para quitar.", type="warning")
+            return
+        if not await confirmar("¿Quitar el contenedor del envío?", f"envío {id_envio} · contenedor {sel_quitar.value}"):
+            return
+        ok, _ = await llamar(servicio.quitar_contenedor, id_envio, sel_quitar.value)
+        if ok:
+            ui.notify("Contenedor quitado", type="positive")
+            ui.navigate.reload()
+
+    with cuerpo:
+        ui.separator()
+        with ui.row().classes("items-end gap-2 w-full"):
+            sel_asignar = ui.select(libres, label="Asignar contenedor", with_input=True).classes("w-72")
+            ui.button("Asignar", icon="add", on_click=asignar).props("dense")
+        if asignados:
+            with ui.row().classes("items-end gap-2 w-full"):
+                sel_quitar = ui.select(
+                    {k: f"{k} · {c.codigo_internacional}" for k, c in asignados.items()},
+                    label="Quitar contenedor").classes("w-72")
+                ui.button("Quitar", icon="remove", color="negative", on_click=quitar).props("dense")
 
 
 def _preparar_mapa(cuerpo, contenedores) -> None:

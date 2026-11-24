@@ -15,6 +15,7 @@ import re
 from functools import lru_cache
 
 from app.domain.lectura_sensor import CAMPO_POR_TIPO_SENSOR
+from app.domain.pago import MEDIOS_PAGO_VALIDOS
 
 _SCHEMA_MYSQL = os.path.join(os.path.dirname(__file__), "..", "..", "scripts", "schema", "mysql_schema.sql")
 _SUFIJO = re.compile(r"^_?(?P<base>[A-Z_]+?)_VALID[OA]S$")
@@ -24,6 +25,8 @@ _TIPOS_SENSOR = list(CAMPO_POR_TIPO_SENSOR)
 # (Dataclass, campo) -> opciones. Estados de Envío: los que usa el resto del
 # código (reportes y predicción) y los que carga el seed; no hay constante.
 _MANUALES = {
+    ("Pago", "medio_pago"): MEDIOS_PAGO_VALIDOS,
+    ("PagoEmitido", "medio_pago"): MEDIOS_PAGO_VALIDOS,
     ("SensorIoT", "tipo"): _TIPOS_SENSOR,
     ("Regla", "tipo_sensor"): _TIPOS_SENSOR,
     ("Envio", "estado"): ["pendiente", "en_transito", "entregado", "demorado", "cancelado"],

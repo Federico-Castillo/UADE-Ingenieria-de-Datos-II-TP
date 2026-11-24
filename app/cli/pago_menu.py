@@ -1,9 +1,9 @@
 """Menú de Pago. Alta únicamente (registro de pago): no tiene sentido
 modificar/borrar un pago ya aplicado al saldo sin un proceso de reverso
 explícito, que queda fuera de alcance de esta entrega."""
-from app.cli.io_utils import leer_decimal, leer_entero, leer_no_vacio, limpiar_pantalla, pausar
+from app.cli.io_utils import leer_decimal, leer_entero, leer_opcion, limpiar_pantalla, pausar
 from app.core.exceptions import AppError
-from app.domain.pago import Pago
+from app.domain.pago import MEDIOS_PAGO_VALIDOS, Pago
 from app.services.pago_service import PagoService
 
 
@@ -16,7 +16,7 @@ def _registrar(service: PagoService) -> None:
     pago = Pago(
         id_factura=leer_entero("ID de factura"),
         monto=leer_decimal("Monto"),
-        medio_pago=leer_no_vacio("Medio de pago (efectivo/transferencia/tarjeta)"),
+        medio_pago=leer_opcion(f"Medio de pago ({'/'.join(MEDIOS_PAGO_VALIDOS)})", set(MEDIOS_PAGO_VALIDOS)),
     )
     creado = service.registrar_pago(pago)
     print(f"Pago registrado con id {creado.id_pago}. Se descontó ${creado.monto:.2f} de la cuenta corriente del cliente.")

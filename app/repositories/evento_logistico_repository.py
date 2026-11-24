@@ -50,6 +50,17 @@ class EventoLogisticoRepository:
             logger.exception("Error creando evento logístico")
             raise RepositoryError(f"No se pudo crear el evento logístico: {e}") from e
 
+    def eliminar(self, id_evento: str) -> bool:
+        """Solo para compensar (rollback manual) un alta cuyo efecto en otro
+        motor falló; los eventos son un historial y no se borran de otro modo."""
+        try:
+            return self._collection.delete_one({"_id": ObjectId(id_evento)}).deleted_count > 0
+        except InvalidId:
+            return False
+        except PyMongoError as e:
+            logger.exception("Error eliminando evento logístico")
+            raise RepositoryError(f"No se pudo eliminar el evento logístico: {e}") from e
+
     def obtener_por_id(self, id_evento: str) -> EventoLogistico | None:
         try:
             doc = self._collection.find_one({"_id": ObjectId(id_evento)})
