@@ -9,6 +9,10 @@ prefijo 'DEMO_', igual que los tests usan 'TEST_' — esto permite volver a
 correr el script sin acumular duplicados (limpia antes de cargar) y nunca
 pisa datos reales que el usuario haya cargado a mano.
 
+Incluye además un envío de ejemplo completo (Córdoba -> Dubái, con 3 tramos y
+datos en los 5 motores; ver scripts/seed_envio_completo.py), que también puede
+cargarse solo.
+
 Al final corre, además, los procesos periódicos (cierre mensual y detección
 de sensores inactivos) para que no aparezcan vacíos. Ojo: la detección de
 sensores inactivos evalúa TODOS los sensores con estado='activo' de la base
@@ -495,6 +499,9 @@ def seed() -> None:
     _crear_mensajeria(usuarios)
     _crear_predicciones(envios)
     _crear_reportes_metadata(usuarios)
+    # Import diferido: seed_envio_completo importa este módulo (limpieza y prefijo).
+    from scripts.seed_envio_completo import cargar_ejemplo
+    cargar_ejemplo()  # envío Córdoba-Dubái con 3 tramos y todos los datos relacionados
 
     print(
         f"Datos base cargados: {len(clientes)} clientes, {len(proveedores)} proveedores, "

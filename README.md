@@ -159,7 +159,17 @@ docker start redis
 ```bash
 python scripts/seed_datos_prueba.py                     # limpia y carga un set chico (DEMO_)
 python scripts/seed_datos_prueba.py --solo-limpiar        # solo borra los datos DEMO_
+python scripts/seed_envio_completo.py                   # solo el envío de ejemplo (DEMO_EJ_)
 ```
+
+El seed ya incluye un **envío de ejemplo completo**: Córdoba → Dubái, en
+tránsito, con 3 tramos (camión, barco, camión), 2 contenedores con 4 sensores
+cada uno y lecturas GPS a lo largo de la ruta, una alerta de temperatura con
+su incidente, eventos logísticos, predicción de riesgo, mensajería, y
+facturación con pagos (factura al cliente parcial; facturas de 3 operadores y
+un proveedor pagadas, parciales y pendientes). Es el mejor envío para abrir en
+`/envio` (la ficha lo muestra en los 5 motores). Se ve con
+`seed_envio_completo.py` por separado si solo se quiere recargar ese ejemplo.
 
 Para empezar de cero (borra los datos de los 5 motores): `docker-compose down -v`,
 `docker-compose up -d`, esperar a que Neo4j y Cassandra estén listos (tardan más
