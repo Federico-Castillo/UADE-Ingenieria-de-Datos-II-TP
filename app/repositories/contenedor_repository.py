@@ -121,7 +121,8 @@ class ContenedorRepository:
         """Baja física: contenedor no tiene flag de estado persistente para
         'dado de baja' en el enunciado (su `estado` es operativo: disponible/
         en_uso/etc). La FK fk_sensor_contenedor con ON DELETE RESTRICT protege
-        contra borrar un contenedor con sensores asociados."""
+        contra borrar un contenedor con sensores asociados, y
+        fk_enviocontenedor_contenedor contra borrar uno asignado a algún envío."""
         try:
             with transaction() as cursor:
                 cursor.execute("DELETE FROM contenedor WHERE id_contenedor = %s", (id_contenedor,))
@@ -129,8 +130,14 @@ class ContenedorRepository:
         except MySQLError as e:
             if e.errno == _MYSQL_ROW_IS_REFERENCED:
                 logger.warning("Intento de borrar contenedor en uso: %s", e)
-                raise RepositoryError(
-                    "No se puede eliminar el contenedor: tiene sensores asociados."
-                ) from e
+                # El mensaje de MySQL nombra la FK violada: se usa para decir
+                # el motivo real (hay más de una tabla que referencia contenedor).
+                if "fk_enviocontenedor_contenedor" in str(e.msg):
+                    motivo = "está asignado a uno o más envíos"
+                elif "fk_sensor_contenedor" in str(e.msg):
+                    motivo = "tiene sensores asociados"
+                else:
+                    motivo = "está referenciado por otros registros"
+                raise RepositoryError(f"No se puede eliminar el contenedor: {motivo}.") from e
             logger.exception("Error eliminando contenedor")
             raise RepositoryError(f"No se pudo eliminar el contenedor: {e}") from e
