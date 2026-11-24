@@ -145,6 +145,11 @@ def pagina_abm(entidad: str = "") -> None:
         filtros["widgets"] = construir_formulario(zona_filtros, filtros["parametros"])
         if not filtros["parametros"]:
             zona_filtros.clear()
+        # Un filtro tildado o elegido recarga la tabla al instante. Los campos de texto
+        # no: recargarían a cada tecla, para ellos está Actualizar.
+        for w in filtros["widgets"].values():
+            if isinstance(w, (ui.checkbox, ui.select)):
+                w.on_value_change(lambda _e: cargar())
         await cargar()
 
     async def abrir_formulario(modo: str) -> None:
